@@ -113,6 +113,13 @@ to the target triple, so host build scripts aren't affected.
 - Before packaging, the script checks each binary's PE machine type against `-Arch` (an x64 build
   can never ship labelled arm64), that `vectorcraft.exe` is a GUI program (no console window) and
   that `vectorcraft-cli.exe` is a console program.
+- **Portable zip:** it ships `packaging/windows/portable.txt` beside `vectorcraft.exe`. That
+  marker (or a `VectorCraft.portable` file) switches on portable mode, as in PhotoCraft: `ui.json`
+  and the folders next to it (Swatches, Graphic Styles, Fonts, Data Recovery, logs…) go to
+  `VectorCraftData\` next to the exe instead of `%APPDATA%\VectorCraft`. If that folder isn't
+  writable the app logs a warning and uses `%APPDATA%`. The MSI has no marker.
+  `VECTORCRAFT_CONFIG_DIR` still wins. The logic is in `apps/vectorcraft/src/profile.rs` and works
+  the same on macOS and Linux.
 - `vectorcraft.wxs` (WiX) is a per-machine install into Program Files with a Start Menu shortcut
   and an App Paths entry (Win+R `vectorcraft`). Same-version upgrades are allowed, so release
   candidates replace each other.

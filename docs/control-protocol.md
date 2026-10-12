@@ -11,6 +11,8 @@ Set `VECTORCRAFT_CONFIG_DIR` to a dedicated directory for an isolated native tes
 logs, recovery and user libraries then use that root, without importing the legacy DrawCraft profile.
 An unset override preserves the usual platform paths and legacy migration; an explicitly empty override
 disables those paths. `VECTORCRAFT_NO_PREFS` continues to disable preference reads and writes.
+Without the override, a `portable.txt` or `VectorCraft.portable` file beside the executable (as in the
+Windows portable zip) puts that root in `VectorCraftData` next to the executable.
 
 **Only requests are read.** Every line must be a JSON object with a string `method` (`id` and `params`
 are optional; blank lines are skipped). Anything else gets one error reply
