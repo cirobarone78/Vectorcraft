@@ -257,6 +257,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         hidden: vec![],
         rot: v.rotation,
         anti_alias: app.session.prefs.anti_aliased_artwork,
+        highlight_alternate_glyphs: app.session.prefs.highlight_alternate_glyphs,
         placed: vectorcraft_render::placed_document::generation(),
         pixel,
         smooth_images,
@@ -308,6 +309,8 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             guide: key.guide,
             mask_view,
             highlight_substitutions: true,
+            // Type › Highlight Alternate Glyphs (#394): pink behind OpenType substitutions.
+            highlight_alternate_glyphs: app.session.prefs.highlight_alternate_glyphs,
             // General › Anti-aliased Artwork: off, edges are hard on screen (raster effects and
             // pattern tiles stay smooth), as in Illustrator.
             anti_alias: if app.session.prefs.anti_aliased_artwork { vectorcraft_render::AntiAlias::Art } else { vectorcraft_render::AntiAlias::None },
