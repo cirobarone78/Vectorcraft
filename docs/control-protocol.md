@@ -12,7 +12,9 @@ logs, recovery and user libraries then use that root, without importing the lega
 An unset override preserves the usual platform paths and legacy migration; an explicitly empty override
 disables those paths. `VECTORCRAFT_NO_PREFS` continues to disable preference reads and writes.
 Without the override, a `portable.txt` or `VectorCraft.portable` file beside the executable (as in the
-Windows portable zip) puts that root in `VectorCraftData` next to the executable.
+Windows portable zip) puts that root in `VectorCraftData` next to the executable; on macOS the marker
+and the folder sit next to `VectorCraft.app`, for an AppImage next to the `.AppImage` file, and a
+Flatpak install has neither. `VECTORCRAFT_NO_PREFS` never looks for the marker or creates the folder.
 
 **Only requests are read.** Every line must be a JSON object with a string `method` (`id` and `params`
 are optional; blank lines are skipped). Anything else gets one error reply
