@@ -911,7 +911,7 @@ impl Default for Prefs {
             font_preview_size: s("medium"),
             recent_fonts_count: 10,
             missing_glyph_protection: true,
-            highlight_alternate_glyphs: true,
+            highlight_alternate_glyphs: false,
             placeholder_text: true,
             units_general: s("points"),
             units_stroke: s("points"),
