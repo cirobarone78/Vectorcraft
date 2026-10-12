@@ -117,7 +117,8 @@ to the target triple, so host build scripts aren't affected.
   marker (or a `VectorCraft.portable` file) switches on portable mode, as in PhotoCraft: `ui.json`
   and the folders next to it (Swatches, Graphic Styles, Fonts, Data Recovery, logs…) go to
   `VectorCraftData\` next to the exe instead of `%APPDATA%\VectorCraft`. If that folder isn't
-  writable the app logs a warning and uses `%APPDATA%`. The MSI has no marker.
+  writable the app logs a warning and uses `%APPDATA%`. Deleting `portable.txt` returns settings to
+  the user profile (the `VectorCraftData` folder is left as it is). The MSI has no marker.
   `VECTORCRAFT_CONFIG_DIR` still wins. The logic is in `apps/vectorcraft/src/profile.rs` and works
   the same on macOS and Linux.
 - `vectorcraft.wxs` (WiX) is a per-machine install into Program Files with a Start Menu shortcut
