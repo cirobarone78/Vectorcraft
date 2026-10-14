@@ -1,9 +1,10 @@
 //! Variables (data merge): named values bound to objects, applied per dataset.
 //!
 //! One template document produces many variants: bind a type object to a `text`
-//! variable and anything to a `visibility` variable, put a row of values in each
-//! dataset, and `dataset.select` swaps the whole document to that row in one undo
-//! step. Agents reach every command through `run_command`, like all engine commands.
+//! variable, anything to a `visibility` variable, or a graph root to a `graph`
+//! variable (CSV data), put a row of values in each dataset, and `dataset.select`
+//! swaps the whole document to that row in one undo step. Agents reach every
+//! command through `run_command`, like all engine commands.
 
 use std::collections::BTreeMap;
 
@@ -16,6 +17,8 @@ use super::*;
 
 /// The longest variable or dataset name, in characters (names arrive from MCP and files).
 const MAX_NAME: usize = 255;
+/// Cap on a graph variable's CSV (MCP and files are untrusted).
+const MAX_GRAPH_CSV: usize = 256 * 1024;
 
 fn var_name(p: &Value, cmd: &str) -> Result<String> {
     named(str_param(p, "name"), "name", cmd)
@@ -59,6 +62,9 @@ fn check_bindable(doc: &vectorcraft_doc::Document, ids: &[NodeId], kind: Variabl
             Some(n) if kind == VariableKind::Text && !matches!(n.kind, NodeKind::Text(_)) => {
                 return Err(bad(cmd, format!("node {} is not type", id.0)));
             }
+            Some(n) if kind == VariableKind::Graph && n.extras().graph.is_none() => {
+                return Err(bad(cmd, format!("node {} is not a graph", id.0)));
+            }
             Some(_) => {}
         }
     }
@@ -69,6 +75,11 @@ fn dataset_value(cmd: &str, var: &str, kind: VariableKind, v: &Value) -> Result<
     match kind {
         VariableKind::Text => v.as_str().map(|t| DataValue::Text(t.to_string())),
         VariableKind::Visibility => v.as_bool().map(DataValue::Visible),
+        VariableKind::Graph => v
+            .as_str()
+            .map(str::trim)
+            .filter(|t| !t.is_empty())
+            .and_then(|t| if t.len() > MAX_GRAPH_CSV { None } else { Some(DataValue::Graph(t.to_string())) }),
     }
     .ok_or_else(|| bad(cmd, format!("value for `{var}` must match its variable kind")))
 }
@@ -90,7 +101,7 @@ fn values_param(vars: &Variables, p: &Value, cmd: &str) -> Result<BTreeMap<Strin
 fn define(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "variable.define";
     let name = var_name(p, C)?;
-    let kind = str_param(p, "kind").and_then(VariableKind::parse).ok_or_else(|| bad(C, "`kind` must be `text` or `visibility`"))?;
+    let kind = str_param(p, "kind").and_then(VariableKind::parse).ok_or_else(|| bad(C, "`kind` must be `text`, `visibility` or `graph`"))?;
     if s.doc()?.doc.variables.variable(&name).is_some() {
         return Err(bad(C, format!("variable `{name}` is already defined")));
     }
@@ -133,7 +144,7 @@ fn rename(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"from": from, "name": to}))
 }
 
-/// Make Text Dynamic / Make Visibility Dynamic: define a variable of that kind and bind the
+/// Make Text / Visibility / Graph Dynamic: define a variable of that kind and bind the
 /// selection to it in one step, naming it after what it drives — the panel's buttons.
 fn make_dynamic(s: &mut Session, kind: VariableKind, stem: &str) -> Result<Value> {
     const C: &str = "variable.makeDynamic";
@@ -415,6 +426,7 @@ fn apply_dataset(s: &mut Session, name: &str) -> Result<Value> {
                     n.visible = *show;
                     true
                 }),
+                (VariableKind::Graph, DataValue::Graph(csv)) => super::graph::apply_csv(d, id, csv).is_ok(),
                 _ => false,
             };
             if done {
@@ -454,7 +466,15 @@ fn dataset_step(s: &mut Session, cmd: &str, forward: bool) -> Result<Value> {
 
 pub fn specs() -> Vec<CommandSpec> {
     vec![
-        cmd!("variable.define", "New Variable…", ["Window", "Variables"], None, "{name, kind: text|visibility} define a variable", has_doc, define),
+        cmd!(
+            "variable.define",
+            "New Variable…",
+            ["Window", "Variables"],
+            None,
+            "{name, kind: text|visibility|graph} define a variable (graph: CSV data on a graph root)",
+            has_doc,
+            define
+        ),
         cmd!(
             "variable.delete",
             "Delete Variable",
@@ -493,11 +513,20 @@ pub fn specs() -> Vec<CommandSpec> {
             |s, _| make_dynamic(s, VariableKind::Visibility, "Visibility")
         ),
         cmd!(
+            "variable.makeGraphDynamic",
+            "Make Graph Dynamic",
+            ["Window", "Variables"],
+            None,
+            "{} define a graph variable over the selected graph root(s), named after it and bound to it; each dataset row supplies CSV as graph.setData",
+            has_selection,
+            |s, _| make_dynamic(s, VariableKind::Graph, "Graph")
+        ),
+        cmd!(
             "variable.bind",
             "Bind Variable",
             ["Window", "Variables"],
             None,
-            "{variable, ids?} bind objects (default: the selection) to a variable; text needs type, locked art is refused. An object may hold several variables, and binding it to one it already has changes nothing → {bound, already}",
+            "{variable, ids?} bind objects (default: the selection) to a variable; text needs type, graph needs a graph root, locked art is refused. An object may hold several variables, and binding it to one it already has changes nothing → {bound, already}",
             has_doc,
             bind
         ),

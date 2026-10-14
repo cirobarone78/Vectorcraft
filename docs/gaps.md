@@ -233,9 +233,8 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 ## G6 Automation and scripting
 
-- **Missing:** a scripting surface over the command registry (Illustrator: JavaScript), Batch, image and graph
-  variable kinds, dataset import/export. Actions, Variables (text and visibility) and full agent control over
-  MCP are done.
+- **Missing:** a scripting surface over the command registry (Illustrator: JavaScript), Batch, image variable kind and dataset import/export (graph variables land separately). Actions, Variables (text,
+  visibility, graph) and full agent control over MCP are done.
 - **Estimate:** 8–14 h.
 
 ## G15 Performance budgets and a GPU renderer
