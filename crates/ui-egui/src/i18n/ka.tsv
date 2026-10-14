@@ -4,7 +4,7 @@
 # Clean-room: every entry is written from the meaning of VectorCraft's English label, following
 # the shared Georgian glossary of the Craft apps (commands as verbal nouns: შენახვა, გახსნა; no
 # capitals, Georgian has none); no other application's Georgian localisation was consulted or
-# copied. Drafted with AI assistance (Claude) and reviewed by a native speaker.
+# copied. Drafted with AI assistance (Claude); not yet reviewed by a native speaker.
 # Vocabulary: სამუშაო დაფა (artboard), ტრაექტორია (path), საყრდენი წერტილი (anchor point),
 # სახელური (handle), კონტური (stroke), შევსება (fill), გრადიენტი (gradient), ფერის ნიმუში
 # (swatch), პატერნი (pattern), ფენა (layer), გაუმჭვირვალობა (opacity), გადასვლა (blend),
@@ -712,10 +712,7 @@
 	Rotation Y	შემობრუნება Y
 	Rotation Z	შემობრუნება Z
 	Shading	დაჩრდილვა
-	Direction	მიმართულება
-	Elevation	სიმაღლე
 	Intensity	ინტენსივობა
-	Ambient	გარემოს განათება
 	Segments	სეგმენტები
 	Show axis	ღერძის ჩვენება
 	Reset all	ყველაფრის ჩამოყრა
@@ -3041,7 +3038,6 @@ theme	Appearance	იერსახე
 	Use Compression	შეკუმშვის გამოყენება
 	Use Japanese Crop Marks	იაპონური ჭრის ნიშნების გამოყენება
 	Use Low Resolution Proxy for Linked EPS	დაბალი გარჩევადობის პროქსის გამოყენება დაკავშირებული EPS-ისთვის
-	Precise Cursors	ზუსტი კურსორები
 	Use Precise Cursors	ზუსტი კურსორების გამოყენება
 	Use Preview Bounds	გადახედვის საზღვრების გამოყენება
 	When pasting text	ტექსტის ჩასმისას
@@ -4405,6 +4401,7 @@ effect	Regular	ჩვეულებრივი
 	24 bits/pixel	24 ბიტი/პიქსელი
 	32 bits/pixel	32 ბიტი/პიქსელი
 	DWG (use DXF)	DWG (გამოიყენეთ DXF)
+# Strings added upstream (sync 2026-10-13).
 	Horizontal & Vertical Align Center	ჰორიზონტალურად და ვერტიკალურად ცენტრში სწორება
 	Find Linked Files	დაკავშირებული ფაილების მოძებნა
 	Find Linked Files in Folder…	დაკავშირებული ფაილების მოძებნა საქაღალდეში…
@@ -4662,3 +4659,66 @@ imageTrace	Outline	კონტური
 @msg	{path}: not a file	{path}: ფაილი არ არის
 	Load EPS into Clipboard	EPS-ის ბუფერში ჩატვირთვა
 @msg	an image of {w} × {h} pixels is too large to draw	{w} × {h} პიქსელის გამოსახულება დასახატად ზედმეტად დიდია
+	A later row takes this shortcut	ამ მალსახმობს ქვემოთა სტრიქონი იყენებს
+	Add to the Current Shortcuts	მიმდინარე მალსახმობებზე დამატება
+	Ambient Light	გარემოს სინათლე
+	Bottom Left:	ქვედა მარცხენა:
+	Bottom Right:	ქვედა მარჯვენა:
+	Can't export “{name}”.	„{name}“ ვერ დაექსპორტდა.
+	Can't save “{name}”.	„{name}“ ვერ შეინახა.
+	Click, then press the key this code stands for (Esc cancels)	დაწკაპეთ, შემდეგ დააჭირეთ კლავიშს, რომელსაც ეს კოდი აღნიშნავს (Esc აუქმებს)
+	Coloring Controls	ფერის მართვის ელემენტები
+	Draw Mode Controls	ხატვის რეჟიმის მართვის ელემენტები
+	Drawer menu	ხელსაწყოების ჩამოსაშლელი მენიუ
+	Each entry of the file is matched to a VectorCraft tool, command or panel. Check the matches and answer what is left.	ფაილის თითოეულ ჩანაწერს შეესაბამება VectorCraft-ის ხელსაწყო, ბრძანება ან პანელი. შეამოწმეთ შესაბამისობები და უპასუხეთ დარჩენილს.
+	Enhanced	გაუმჯობესებული
+	Fill and Stroke Controls	შევსებისა და კონტურის მართვის ელემენტები
+	Forget Import Matches	იმპორტის შესაბამისობების დავიწყება
+	Import Matches	იმპორტის შესაბამისობები
+	Import Shortcut Set	მალსახმობების ნაკრების იმპორტი
+	Import Shortcut Set…	მალსახმობების ნაკრების იმპორტი…
+	In VectorCraft	VectorCraft-ში
+	In the File	ფაილში
+	Keys	კლავიშები
+	Light behind the object	სინათლე ობიექტის უკან
+	Line {line}	სტრიქონი {line}
+	Line {line}: {name}: {status}	სტრიქონი {line}: {name}: {status}
+	Needs Attention Only	მხოლოდ საყურადღებო
+	Needs a choice	საჭიროა არჩევა
+	Needs a key	საჭიროა კლავიში
+	No equivalent	შესატყვისი არ არის
+	Precise Cursors	ზუსტი კურსორები
+	Press a key…	დააჭირეთ კლავიშს…
+	Read Shortcut Set File	მალსახმობების ნაკრების ფაილის წაკითხვა
+	Ready	მზადაა
+	Remember Import Matches	იმპორტის შესაბამისობების დამახსოვრება
+	Remember My Choices	ჩემი არჩევანის დამახსოვრება
+	Report copied	ანგარიში კოპირებულია
+	Same item as a later row	იგივე ელემენტი, რაც ქვემოთა სტრიქონში
+	Screen Mode Controls	ეკრანის რეჟიმის მართვის ელემენტები
+	Shortcuts	მალსახმობები
+	Single Corner Radius	კუთხის ერთიანი რადიუსი
+	Softness	სირბილე
+	Start from VectorCraft Defaults	VectorCraft-ის ნაგულისხმევიდან დაწყება
+	The file is too large to read in full, so only its first part is listed.	ფაილი სრულად წასაკითხად ზედმეტად დიდია, ამიტომ მხოლოდ მისი პირველი ნაწილია ნაჩვენები.
+	The file writes keys and modifiers as codes. Check the proposed meanings and answer the codes that are not known yet.	ფაილი კლავიშებსა და მოდიფიკატორებს კოდებით წერს. შეამოწმეთ შემოთავაზებული მნიშვნელობები და უპასუხეთ ჯერ უცნობ კოდებს.
+	Toolbar: Show Controls	ხელსაწყოთა ზოლი: მართვის ელემენტების ჩვენება
+	Tools take a single key (optionally with Shift)	ხელსაწყოს ერთი კლავიში ენიჭება (სურვილისამებრ Shift-ით)
+	Top Left:	ზედა მარცხენა:
+	Top Right:	ზედა მარჯვენა:
+	from the format's public description	ფორმატის საჯარო აღწერიდან
+	from your earlier imports	თქვენი წინა იმპორტებიდან
+	not known yet	ჯერ უცნობია
+	{ready} of {total} ready	მზადაა: {ready} / {total}
+@msg	This shortcut file is in a form VectorCraft can't read.	მალსახმობების ეს ფაილი ისეთ ფორმატშია, რომელსაც VectorCraft ვერ კითხულობს.
+@msg	control must be fillStroke, coloring, drawMode or screenMode	control უნდა იყოს fillStroke, coloring, drawMode ან screenMode
+@msg	give a fraction `t` from 0 to 1	მიუთითეთ წილი `t` 0-დან 1-მდე
+@msg	give the path `id`	მიუთითეთ ტრაექტორიის `id`
+@msg	invalid stroke widths	კონტურის სისქეები არასწორია
+@msg	not a shortcut set: the text doesn't start with a slash name and an opening brace	ეს მალსახმობების ნაკრები არ არის: ტექსტი არ იწყება დახრილი ხაზით დაწყებული სახელითა და გამხსნელი ფიგურული ფრჩხილით
+@msg	object has no weighted stroke	ობიექტს ცვლადი სისქის კონტური არ აქვს
+@msg	objects can't be nested more than 32 deep	ობიექტების ჩადგმის სიღრმე 32-ს ვერ გადააჭარბებს
+@msg	the SVG's elements are nested more than {0} deep	SVG-ის ელემენტების ჩადგმის სიღრმე {0}-ს აჭარბებს
+@msg	unknown control `{name}`: fillStroke, coloring, drawMode or screenMode	უცნობი control `{name}`: fillStroke, coloring, drawMode ან screenMode
+@plural	agrees with {n} default shortcut|agrees with {n} default shortcuts	ემთხვევა ნაგულისხმევ მალსახმობებს: {n}|ემთხვევა ნაგულისხმევ მალსახმობებს: {n}
+@plural	{n} part of the file wasn't read|{n} parts of the file weren't read	ფაილის წაუკითხავი ნაწილები: {n}|ფაილის წაუკითხავი ნაწილები: {n}
