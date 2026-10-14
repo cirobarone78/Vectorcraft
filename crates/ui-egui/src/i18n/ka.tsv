@@ -553,7 +553,7 @@
 	Make Visibility Dynamic	ხილვადობის დინამიკურად ქცევა
 	Capture Data Set	მონაცემთა ნაკრების ჩაწერა
 	Update Data Set	მონაცემთა ნაკრების განახლება
-	Rename Data Set…	მონაცემთა ნაკრების გადარქმევა…
+	Rename Data Set…	მონაცემთა ნაკრების სახელის შეცვლა…
 	Variable Options…	ცვლადის პარამეტრები…
 	Brush Libraries	ფუნჯების ბიბლიოთეკები
 	Built-in Libraries	ჩაშენებული ბიბლიოთეკები
@@ -696,8 +696,8 @@
 	Diffuse Glow…	გაბნეული ნათება…
 	Glass…	მინა…
 	Ocean Ripple…	ოკეანის ტალღები…
-	Rename Data Set	მონაცემთა ნაკრების გადარქმევა
-	Rename Variable	ცვლადის გადარქმევა
+	Rename Data Set	მონაცემთა ნაკრების სახელის შეცვლა
+	Rename Variable	ცვლადის სახელის შეცვლა
 	Activate Panel	პანელის გააქტიურება
 	Change Panel Layout	პანელების განლაგების შეცვლა
 	Close Panel	პანელის დახურვა
@@ -847,7 +847,7 @@ lighting	Light	სინათლე
 	Redo {}	ხელახლა შესრულება: {}
 	Missing Fonts Dialog	დაკარგული შრიფტების დიალოგი
 	Find Fonts in Folder…	შრიფტების ძებნა საქაღალდეში…
-	Rename Workspace	სამუშაო სივრცის გადარქმევა
+	Rename Workspace	სამუშაო სივრცის სახელის შეცვლა
 	Reset Keyboard Shortcuts	კლავიატურის მალსახმობების ჩამოყრა
 	Reset {name}	ჩამოყრა: {name}
 	Reset {}	ჩამოყრა: {}
@@ -1390,7 +1390,7 @@ lighting	Light	სინათლე
 	Add Content	შიგთავსის დამატება
 	Click to apply to the selected type	დაწკაპეთ მონიშნულ ტექსტზე გამოსაყენებლად
 	Create New Library…	ახალი ბიბლიოთეკის შექმნა…
-	Rename Library…	ბიბლიოთეკის სახელის გადარქმევა…
+	Rename Library…	ბიბლიოთეკის სახელის შეცვლა…
 	Delete the library “{name}”?	წაიშალოს ბიბლიოთეკა „{name}“?
 	Drag art or swatches here, or use + to add the selection's colors and text styles.	ჩაავლეთ აქ ნახატი ან ფერის ნიმუშები, ან + -ით დაამატეთ მონიშნულის ფერები და ტექსტის სტილები.
 	Its graphics, colors and text styles are deleted from this machine.	მისი გრაფიკა, ფერები და ტექსტის სტილები ამ კომპიუტერიდან წაიშლება.
@@ -1403,7 +1403,7 @@ lighting	Light	სინათლე
 	New Group…	ახალი ჯგუფი…
 	Move to Group	ჯგუფში გადატანა
 	No Group	ჯგუფის გარეშე
-	Rename Group…	ჯგუფის გადარქმევა…
+	Rename Group…	ჯგუფის სახელის შეცვლა…
 	Delete Group	ჯგუფის წაშლა
 	Import Library…	ბიბლიოთეკის იმპორტირება…
 	Export Library…	ბიბლიოთეკის ექსპორტირება…
@@ -2535,7 +2535,7 @@ theme	Appearance	იერსახე
 	Assets	რესურსები
 	Export Assets	რესურსების ექსპორტირება
 	Remove Asset	რესურსის წაშლა
-	Rename Asset	რესურსის გადარქმევა
+	Rename Asset	რესურსის სახელის შეცვლა
 	Fill Rule	შევსების წესი
 	Apply Brush	ფუნჯის გამოყენება
 	Break Link to Symbol	სიმბოლოსთან კავშირის გაწყვეტა
@@ -2752,10 +2752,10 @@ theme	Appearance	იერსახე
 	Import Library	ბიბლიოთეკის იმპორტი
 	Export Library	ბიბლიოთეკის ექსპორტირება
 	New Library Group	ბიბლიოთეკის ახალი ჯგუფი
-	Rename Library Group	ბიბლიოთეკის ჯგუფის გადარქმევა
+	Rename Library Group	ბიბლიოთეკის ჯგუფის სახელის შეცვლა
 	Delete Library Group	ბიბლიოთეკის ჯგუფის წაშლა
 	Move Library Item to Group	ბიბლიოთეკის ელემენტის ჯგუფში გადატანა
-	Rename Library	ბიბლიოთეკის გადარქმევა
+	Rename Library	ბიბლიოთეკის სახელის შეცვლა
 	Show Library	ბიბლიოთეკის ჩვენება
 	Use Library Item	ბიბლიოთეკის ელემენტის გამოყენება
 	Graphic	გრაფიკა
@@ -3095,7 +3095,7 @@ theme	Appearance	იერსახე
 	Move Graphic Style	გრაფიკული სტილის გადატანა
 	New Graphic Style	ახალი გრაფიკული სტილი
 	Redefine Graphic Style	გრაფიკული სტილის ხელახლა განსაზღვრა
-	Rename Graphic Style	გრაფიკული სტილის გადარქმევა
+	Rename Graphic Style	გრაფიკული სტილის სახელის შეცვლა
 	Add to Graphic Styles	გრაფიკულ სტილებში დამატება
 	Graphic Style Library	გრაფიკული სტილების ბიბლიოთეკა
 	Add Used Colors	გამოყენებული ფერების დამატება
@@ -3404,7 +3404,7 @@ effect	Regular	ჩვეულებრივი
 	Name:	სახელი:
 	New	ახალი
 	New Workspace	ახალი სამუშაო სივრცე
-	Rename	გადარქმევა
+	Rename	სახელის შეცვლა
 	Save the current layout under this name	მიმდინარე განლაგების შენახვა ამ სახელით
 	Saves the current bars, toolbar and panel layout.	ინახავს ზოლების, ხელსაწყოთა პანელისა და პანელების მიმდინარე განლაგებას.
 	Workspace {i}	სამუშაო სივრცე {i}
@@ -3447,8 +3447,8 @@ effect	Regular	ჩვეულებრივი
 	Paragraph Style Options	აბზაცის სტილის პარამეტრები
 	Redefine Character Style	სიმბოლოს სტილის ხელახლა განსაზღვრა
 	Redefine Paragraph Style	აბზაცის სტილის ხელახლა განსაზღვრა
-	Rename Character Style	სიმბოლოს სტილის გადარქმევა
-	Rename Paragraph Style	აბზაცის სტილის გადარქმევა
+	Rename Character Style	სიმბოლოს სტილის სახელის შეცვლა
+	Rename Paragraph Style	აბზაცის სტილის სახელის შეცვლა
 	Select All Art on Layer	შრეზე მთელი ნახატის მონიშვნა
 	Settings…	პარამეტრები…
 	Joins	შეერთებები
