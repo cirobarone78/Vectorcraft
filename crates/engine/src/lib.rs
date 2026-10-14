@@ -1610,12 +1610,14 @@ impl Session {
         let Some(mut it) = st.interaction.take() else { return Ok(()) };
         let Some(preview) = it.preview.take() else { return Ok(()) };
         let perspective_again = it.perspective_again.take();
-        let copy = preview.0 == "object.transform" && preview.1.get("copy").and_then(Value::as_bool).unwrap_or(false);
+        let copy = preview.1.get("copy").and_then(Value::as_bool).unwrap_or(false);
         // Alt pressed or released during a move drag turns it into a copy or back: name it for
         // what it did in the end.
-        match (it.label.as_str(), copy) {
-            ("Move", true) => it.label = "Copy".into(),
-            ("Copy", false) if preview.0 == "object.transform" => it.label = "Move".into(),
+        match (it.label.as_str(), preview.0.as_str(), copy) {
+            ("Move", "object.transform", true) => it.label = "Copy".into(),
+            ("Copy", "object.transform", false) => it.label = "Move".into(),
+            ("Move Guide", "guide.move", true) => it.label = "Copy Guide".into(),
+            ("Copy Guide", "guide.move", false) => it.label = "Move Guide".into(),
             _ => {}
         }
         st.keep_interaction(it);

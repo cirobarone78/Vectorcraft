@@ -682,7 +682,7 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                     ui.data_mut(|dd| dd.insert_temp(drag_id(), Drag::Art));
                 }
                 Drag::Tool => {
-                    if pointer.delta() != egui::Vec2::ZERO {
+                    if pointer.delta() != egui::Vec2::ZERO || (mods_changed && guide_drag_active(app)) {
                         let ev = PointerEvent { kind: PointerKind::Drag, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
                         dispatch(app, &ev, view);
                     }
@@ -865,6 +865,11 @@ fn wheel(i: &egui::InputState, wheel_zooms: bool, line: f32, page: f32, turn: &m
     (zoom * step.exp(), scroll)
 }
 
+/// A selection tool is previewing an existing-guide move or copy.
+fn guide_drag_active(app: &VectorcraftApp) -> bool {
+    app.session.active().and_then(|st| st.interaction.as_ref()).and_then(|i| i.preview.as_ref()).is_some_and(|(cmd, _)| cmd == "guide.move")
+}
+
 /// Enable Touch Gestures: this frame's finger contacts on the canvas ([`crate::touch`]). A second
 /// finger drops the press the first one began (its tool interaction rolled back; the rest of the
 /// gesture presses nothing), and a tap of two fingers undoes, one of three redoes.
@@ -893,8 +898,12 @@ fn touch_gestures(app: &mut VectorcraftApp, ui: &Ui, rect: egui::Rect, view: vec
         match taps.feed(id, phase, pos, now) {
             Some(crate::touch::Touch::Fingers) => {
                 if ui.data(|d| d.get_temp::<Drag>(drag_id())) == Some(Drag::Tool) {
-                    // Nothing it began is kept; the tool's mouse-up returns it to rest.
+                    // Clear a selection tool's guide drag even if Redo already settled its
+                    // preview. Keep Up to return any temporarily borrowed selection tool.
                     let _ = app.session.cancel_interaction();
+                    if matches!(app.session.tool_id(), "selection" | "directSelection" | "groupSelection") {
+                        dispatch(app, &PointerEvent { kind: PointerKind::Move, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
+                    }
                     dispatch(app, &PointerEvent { kind: PointerKind::Up, pos: Point::ZERO, mods: Mods::default(), pressure: 1.0 }, view);
                 }
                 ui.data_mut(|d| d.insert_temp(drag_id(), Drag::Gesture));
@@ -4646,5 +4655,413 @@ mod tests {
         assert!(!app.ui.task_bar_place.pinned);
         near(select(&mut app, &a), under_a);
         near(select(&mut app, &b), under_b);
+    }
+
+    /// Existing-guide gestures use actual canvas events; no drag state or expected preview is seeded.
+    struct MovedGuideFixture {
+        app: VectorcraftApp,
+        ctx: egui::Context,
+        vertical: bool,
+        from: Pos2,
+        to: Pos2,
+        end: Pos2,
+        before: std::sync::Arc<vectorcraft_doc::Document>,
+        selection: vectorcraft_doc::Selection,
+        redo: std::sync::Arc<vectorcraft_doc::Document>,
+        undo: usize,
+    }
+
+    impl MovedGuideFixture {
+        fn new(vertical: bool, tool: &str, origin: Point, multiple: bool) -> Self {
+            let mut app = VectorcraftApp::new(Session::new(), Default::default());
+            app.run("file.new", json!({"width":400,"height":300})).unwrap();
+            app.run("document.setUnits", json!({"units":"pt"})).unwrap();
+            app.run("document.setRulerOrigin", json!({"x":origin.x,"y":origin.y})).unwrap();
+            app.run("view.guides.lock", json!({"locked":false})).unwrap();
+            app.run("shape.rectangle", json!({"x":20,"y":20,"width":20,"height":20})).unwrap();
+            app.run("guide.add", json!({"vertical":vertical,"pos":100,"artboard":0})).unwrap();
+            if multiple {
+                app.run("guide.add", json!({"vertical":!vertical,"pos":200,"artboard":0})).unwrap();
+            }
+            app.run("guide.select", json!({"indexes":if multiple { vec![0,1] } else { vec![0] }})).unwrap();
+            app.run("shape.rectangle", json!({"x":300,"y":260,"width":10,"height":10})).unwrap();
+            let redo = app.session.active().unwrap().doc.clone();
+            app.run("edit.undo", json!({})).unwrap();
+            app.select_tool(tool);
+            app.ui.view.rulers = true;
+            app.ui.view.guides = true;
+            app.ui.view.smart_guides = false;
+            app.ui.view.snap_to_point = false;
+            app.ui.view.snap_to_grid = false;
+            app.ui.view.snap_to_pixel = false;
+            let ctx = egui::Context::default();
+            frame(&mut app, &ctx, vec![]);
+            let v = app.view_mut().unwrap();
+            v.center = Point::new(200.0, 150.0);
+            v.zoom = 1.0;
+            v.rotation = 0.0;
+            frame(&mut app, &ctx, vec![]);
+            app.session.active_mut().unwrap().mark_saved();
+            let st = app.session.active().unwrap();
+            let (before, selection, undo) = (st.doc.clone(), st.selection.clone(), st.history.undo.len());
+            assert_eq!(st.history.redo.len(), 1);
+            assert_eq!(selection.guides, if multiple { vec![0, 1] } else { vec![0] });
+            let rect = app.canvas_rect.unwrap();
+            let xf = Xf::new(rect, app.view().unwrap());
+            let from = xf.to_screen(if vertical { Point::new(100.0, 50.0) } else { Point::new(50.0, 100.0) });
+            let to = xf.to_screen(if vertical { Point::new(223.0, 50.0) } else { Point::new(50.0, 237.0) });
+            let end = xf.to_screen(if vertical { Point::new(231.0, 50.0) } else { Point::new(50.0, 244.0) });
+            assert!([from, to, end].into_iter().all(|p| rect.contains(p)));
+            Self { app, ctx, vertical, from, to, end, before, selection, redo, undo }
+        }
+
+        fn button(pos: Pos2, pressed: bool, modifiers: egui::Modifiers) -> egui::Event {
+            egui::Event::PointerButton { pos, button: egui::PointerButton::Primary, pressed, modifiers }
+        }
+
+        fn start(&mut self, m: egui::Modifiers) {
+            frame(&mut self.app, &self.ctx, vec![egui::Event::ModifiersChanged(m), egui::Event::PointerMoved(self.from)]);
+            frame(&mut self.app, &self.ctx, vec![Self::button(self.from, true, m)]);
+            frame(&mut self.app, &self.ctx, vec![egui::Event::PointerMoved(self.to)]);
+            assert!(self.app.session.tool_busy() && self.app.session.in_interaction());
+        }
+
+        fn modifiers(&mut self, m: egui::Modifiers) {
+            frame(&mut self.app, &self.ctx, vec![egui::Event::ModifiersChanged(m)]);
+        }
+
+        fn release(&mut self, pos: Pos2, m: egui::Modifiers) {
+            // No PointerMoved: the release event itself must supply the final position and modifiers.
+            frame(&mut self.app, &self.ctx, vec![egui::Event::ModifiersChanged(m), Self::button(pos, false, m)]);
+        }
+
+        fn check_guides(&self, at: f64, copy: bool) {
+            let mut moved = self.before.guides.clone();
+            for guide in &mut moved {
+                if guide.vertical == self.vertical {
+                    guide.pos += at - 100.0;
+                }
+            }
+            let n = moved.len();
+            let expected = if copy { self.before.guides.iter().cloned().chain(moved).collect::<Vec<_>>() } else { moved };
+            let st = self.app.session.active().unwrap();
+            assert_eq!(
+                st.doc.guides, expected,
+                "vertical={} at={at} copy={copy}: actual guides must match the pointer, preserving layer/artboard and the perpendicular selection",
+                self.vertical
+            );
+            assert_eq!(st.selection.guides, if copy { (n..n * 2).collect::<Vec<_>>() } else { (0..n).collect() });
+            assert_eq!(st.doc.layers, self.before.layers, "ordinary artwork stays unchanged");
+            assert_eq!(st.doc.ruler_origin, self.before.ruler_origin);
+        }
+
+        fn preview(&mut self, at: f64, copy: bool) {
+            self.check_guides(at, copy);
+            let st = self.app.session.active().unwrap();
+            assert!(st.interaction.is_some());
+            assert_eq!((st.history.undo.len(), st.history.redo.len()), (self.undo, 1));
+            let origin = if self.vertical { self.before.ruler_origin.x } else { self.before.ruler_origin.y };
+            let want = format!("{}: {:.2} pt", if self.vertical { "X" } else { "Y" }, at - origin);
+            let view = self.app.view_info();
+            let overlays = self.app.session.overlays(view);
+            assert!(
+                overlays.iter().any(|o| matches!(o, vectorcraft_tools::Overlay::Measure { text, .. } if text == &want)),
+                "{overlays:?}; want={want}"
+            );
+        }
+
+        fn history(&mut self, label: &str) {
+            let st = self.app.session.active().unwrap();
+            assert!(st.interaction.is_none() && !self.app.session.tool_busy());
+            assert_eq!((st.history.undo.len(), st.history.redo.len(), st.is_dirty()), (self.undo + 1, 0, true));
+            assert_eq!(st.history.undo.last().unwrap().label, label);
+            let (after, selected) = (st.doc.clone(), st.selection.clone());
+            self.app.run("edit.undo", json!({})).unwrap();
+            let st = self.app.session.active().unwrap();
+            assert_eq!(st.doc, self.before);
+            assert_eq!(st.selection, self.selection);
+            assert_eq!((st.history.undo.len(), st.history.redo.len(), st.is_dirty()), (self.undo, 1, false));
+            self.app.run("edit.redo", json!({})).unwrap();
+            let st = self.app.session.active().unwrap();
+            assert_eq!(st.doc, after);
+            assert_eq!(st.selection, selected);
+            assert_eq!((st.history.undo.len(), st.history.redo.len()), (self.undo + 1, 0));
+        }
+
+        fn cancelled(&mut self) {
+            let st = self.app.session.active().unwrap();
+            assert_eq!(st.doc, self.before);
+            assert_eq!(st.selection, self.selection);
+            assert!(st.interaction.is_none() && !self.app.session.tool_busy());
+            assert_eq!((st.history.undo.len(), st.history.redo.len(), st.is_dirty()), (self.undo, 1, false));
+            self.app.run("edit.redo", json!({})).unwrap();
+            assert_eq!(self.app.session.active().unwrap().doc, self.redo, "cancel preserves the pre-existing Redo branch");
+        }
+    }
+
+    #[test]
+    fn moved_guide_stationary_shift_updates_preview_and_history() {
+        for tool in ["selection", "directSelection", "groupSelection"] {
+            for vertical in [false, true] {
+                for first_shift in [false, true] {
+                    let mut f = MovedGuideFixture::new(vertical, tool, Point::ZERO, false);
+                    let m = |shift| if shift { egui::Modifiers::SHIFT } else { egui::Modifiers::NONE };
+                    let at = |shift| {
+                        if vertical {
+                            if shift { 225.0 } else { 223.0 }
+                        } else if shift {
+                            235.0
+                        } else {
+                            237.0
+                        }
+                    };
+                    f.start(m(first_shift));
+                    for shift in [first_shift, !first_shift, first_shift, !first_shift] {
+                        f.modifiers(m(shift));
+                        f.preview(at(shift), false);
+                    }
+                    f.release(f.to, m(!first_shift));
+                    f.check_guides(at(!first_shift), false);
+                    f.history("Move Guide");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn moved_guide_stationary_alt_updates_copy_and_history() {
+        for tool in ["selection", "directSelection"] {
+            for vertical in [false, true] {
+                for first_copy in [false, true] {
+                    let mut f = MovedGuideFixture::new(vertical, tool, Point::ZERO, true);
+                    let m = |copy| if copy { egui::Modifiers::ALT } else { egui::Modifiers::NONE };
+                    let at = if vertical { 223.0 } else { 237.0 };
+                    f.start(m(first_copy));
+                    for copy in [first_copy, !first_copy, first_copy, !first_copy] {
+                        f.modifiers(m(copy));
+                        f.preview(at, copy);
+                    }
+                    f.release(f.to, m(!first_copy));
+                    f.check_guides(at, !first_copy);
+                    f.history(if first_copy { "Move Guide" } else { "Copy Guide" });
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn moved_guide_moving_alt_uses_final_history_label() {
+        for vertical in [false, true] {
+            for first_copy in [false, true] {
+                let mut f = MovedGuideFixture::new(vertical, "selection", Point::ZERO, true);
+                let first = if first_copy { egui::Modifiers::ALT } else { egui::Modifiers::NONE };
+                let last = if first_copy { egui::Modifiers::NONE } else { egui::Modifiers::ALT };
+                f.start(first);
+                // Pointer movement already routes this preview on the baseline: only its final
+                // history label is stale, independently of stationary modifier routing.
+                frame(&mut f.app, &f.ctx, vec![egui::Event::ModifiersChanged(last), egui::Event::PointerMoved(f.end)]);
+                let at = if vertical { 231.0 } else { 244.0 };
+                f.preview(at, !first_copy);
+                f.release(f.end, last);
+                f.check_guides(at, !first_copy);
+                f.history(if first_copy { "Move Guide" } else { "Copy Guide" });
+            }
+        }
+    }
+
+    #[test]
+    fn moved_guide_release_only_modifiers_are_applied() {
+        use egui::Modifiers as M;
+        for vertical in [false, true] {
+            for (first, last) in [
+                (M::NONE, M::SHIFT),
+                (M::SHIFT, M::NONE),
+                (M::NONE, M::ALT),
+                (M::ALT, M::NONE),
+                (M::NONE, M::SHIFT | M::ALT),
+                (M::SHIFT | M::ALT, M::NONE),
+            ] {
+                let mut f = MovedGuideFixture::new(vertical, "selection", Point::ZERO, false);
+                f.start(first);
+                f.release(f.to, last);
+                let at = if vertical {
+                    if last.shift { 225.0 } else { 223.0 }
+                } else if last.shift {
+                    235.0
+                } else {
+                    237.0
+                };
+                f.check_guides(at, last.alt);
+                f.history(if last.alt { "Copy Guide" } else { "Move Guide" });
+            }
+        }
+    }
+
+    #[test]
+    fn moved_guide_release_only_position_is_applied() {
+        for vertical in [false, true] {
+            for m in [egui::Modifiers::NONE, egui::Modifiers::SHIFT | egui::Modifiers::ALT] {
+                let mut f = MovedGuideFixture::new(vertical, "directSelection", Point::ZERO, false);
+                f.start(m);
+                f.release(f.end, m);
+                let at = if vertical {
+                    if m.shift { 230.0 } else { 231.0 }
+                } else if m.shift {
+                    245.0
+                } else {
+                    244.0
+                };
+                f.check_guides(at, m.alt);
+                f.history(if m.alt { "Copy Guide" } else { "Move Guide" });
+            }
+        }
+    }
+
+    #[test]
+    fn moved_guide_ruler_drop_preserves_remove_and_copy_cancel() {
+        for vertical in [false, true] {
+            for copy in [false, true] {
+                let mut f = MovedGuideFixture::new(vertical, "selection", Point::ZERO, false);
+                f.start(egui::Modifiers::NONE);
+                let rect = f.app.canvas_rect.unwrap();
+                let ruler = if vertical { pos2(rect.left() - RULER / 2.0, f.to.y) } else { pos2(f.to.x, rect.top() - RULER / 2.0) };
+                f.release(ruler, if copy { egui::Modifiers::ALT } else { egui::Modifiers::NONE });
+                if copy {
+                    f.cancelled();
+                } else {
+                    let st = f.app.session.active().unwrap();
+                    assert!(st.doc.guides.is_empty());
+                    assert_eq!(st.doc.layers, f.before.layers);
+                    f.history("Delete Guide");
+                }
+            }
+        }
+    }
+
+    fn check_moved_guide_touch_cancel_without_preview(settled_by_redo: bool) {
+        let snapshot = |app: &VectorcraftApp| {
+            let st = app.session.active().unwrap();
+            let entries = |stack: &[vectorcraft_engine::HistoryEntry]| {
+                stack.iter().map(|e| (e.label.clone(), e.doc.clone(), e.selection.clone(), e.bytes)).collect::<Vec<_>>()
+            };
+            (st.doc.clone(), st.selection.clone(), entries(&st.history.undo), entries(&st.history.redo), st.is_dirty())
+        };
+        for tool in ["selection", "directSelection", "groupSelection"] {
+            for borrowed in [false, true] {
+                let mut f = MovedGuideFixture::new(true, tool, Point::ZERO, false);
+                f.app.session.prefs.touch_gestures = true;
+                // Choose a different tool first: choosing an already active Selection would not
+                // record it as the selection tool that Cmd borrows from the Pen.
+                f.app.select_tool("pen");
+                f.app.select_tool(tool);
+                if borrowed {
+                    f.app.select_tool("pen");
+                }
+                let options = f.app.session.tool_options();
+                // The real pointer is on canvas, but document zero is beyond the left ruler.
+                let rect = f.app.canvas_rect.unwrap();
+                f.app.view_mut().unwrap().center = Point::new(10.0 + f64::from(rect.width()) / 2.0, -100.0 + f64::from(rect.height()) / 2.0);
+                frame(&mut f.app, &f.ctx, vec![]);
+                let rect = f.app.canvas_rect.unwrap();
+                let xf = Xf::new(rect, f.app.view().unwrap());
+                let from = xf.to_screen(Point::new(100.0, 50.0));
+                let to = xf.to_screen(Point::new(123.0, 50.0));
+                let held = if settled_by_redo { to } else { from };
+                let second = held + vec2(20.0, 20.0);
+                let later = held + vec2(30.0, 0.0);
+                assert!([from, to, second, later].into_iter().all(|p| rect.contains(p)));
+                assert!(f.app.screen_frame().unwrap().to_screen(Point::ZERO).unwrap().0 < 0.0);
+                let m = egui::Modifiers { command: borrowed, shift: !settled_by_redo, ..Default::default() };
+                let touch = |id, phase, pos| egui::Event::Touch { device_id: egui::TouchDeviceId(1), id: egui::TouchId(id), phase, pos, force: None };
+                frame(&mut f.app, &f.ctx, vec![egui::Event::ModifiersChanged(m), egui::Event::PointerMoved(from)]);
+                frame(&mut f.app, &f.ctx, vec![touch(1, egui::TouchPhase::Start, from), MovedGuideFixture::button(from, true, m)]);
+                assert_eq!(f.app.session.tool_id(), tool, "the requested selection tool handles the actual press");
+                if settled_by_redo {
+                    frame(&mut f.app, &f.ctx, vec![touch(1, egui::TouchPhase::Move, to), egui::Event::PointerMoved(to)]);
+                    f.preview(123.0, false);
+                    // Redo first settles the preview as a new edit and consumes the old branch.
+                    // Its ordinary error must not restore the document from before this move.
+                    let error = f.app.run("edit.redo", json!({})).unwrap_err();
+                    assert!(error.contains("nothing to redo"), "{error}");
+                    f.check_guides(123.0, false);
+                    let st = f.app.session.active().unwrap();
+                    assert_eq!((st.history.undo.len(), st.history.redo.len(), st.is_dirty()), (f.undo + 1, 0, true));
+                    assert_eq!(st.history.undo.last().unwrap().label, "Move Guide");
+                } else {
+                    // Shift on an already selected guide defers deselection until Up, without
+                    // starting a preview. A second finger must cancel that pending click too.
+                    f.check_guides(100.0, false);
+                    let st = f.app.session.active().unwrap();
+                    assert_eq!(st.doc, f.before);
+                    assert_eq!(st.selection, f.selection);
+                    assert_eq!((st.history.undo.len(), st.history.redo.len(), st.is_dirty()), (f.undo, 1, false));
+                }
+                assert!(f.ctx.input(|i| i.pointer.primary_down()));
+                assert!(!f.app.session.in_interaction() && f.app.session.tool_busy());
+                // The settled case's oracle is deliberately AFTER Redo, not the pre-drag state.
+                let before_cancel = snapshot(&f.app);
+                let status = f.app.ui.status.clone();
+                for (phase, events) in [
+                    ("second contact", vec![touch(2, egui::TouchPhase::Start, second)]),
+                    // Move more than the 16-point tap slop after cancellation. Both cases must
+                    // remain inert on release, rather than intentionally triggering tap Undo.
+                    ("held motion", vec![touch(1, egui::TouchPhase::Move, later), egui::Event::PointerMoved(later)]),
+                    ("second release", vec![touch(2, egui::TouchPhase::End, second)]),
+                    (
+                        "primary release",
+                        vec![touch(1, egui::TouchPhase::End, later), MovedGuideFixture::button(later, false, m), egui::Event::PointerGone],
+                    ),
+                    ("idle after release", vec![]),
+                ] {
+                    frame(&mut f.app, &f.ctx, events);
+                    assert_eq!(
+                        snapshot(&f.app),
+                        before_cancel,
+                        "touch cancellation changed the snapshot: settled_by_redo={settled_by_redo} tool={tool} borrowed={borrowed} phase={phase}"
+                    );
+                    assert!(!f.app.session.in_interaction() && !f.app.session.tool_busy());
+                    assert_eq!(f.app.session.tool_id(), if borrowed { "pen" } else { tool });
+                    assert_eq!(f.app.session.tool_options(), options);
+                    assert_eq!(f.app.ui.status, status, "cancellation must not refresh an absent preview or report an error");
+                }
+                assert!(!f.ctx.input(|i| i.pointer.primary_down()));
+            }
+        }
+    }
+
+    #[test]
+    fn moved_guide_touch_cancel_after_redo_keeps_settled_snapshot() {
+        check_moved_guide_touch_cancel_without_preview(true);
+    }
+
+    #[test]
+    fn moved_guide_touch_cancel_before_preview_keeps_shift_selection() {
+        check_moved_guide_touch_cancel_without_preview(false);
+    }
+
+    #[test]
+    fn moved_guide_touch_cancel_preserves_redo() {
+        for tool in ["selection", "pen"] {
+            for vertical in [false, true] {
+                for copy in [false, true] {
+                    let mut f = MovedGuideFixture::new(vertical, tool, Point::ZERO, false);
+                    f.app.session.prefs.touch_gestures = true;
+                    // Cmd with the Pen borrows a selection tool until Up; cancellation returns it.
+                    let m = egui::Modifiers { command: tool == "pen", alt: copy, ..Default::default() };
+                    frame(&mut f.app, &f.ctx, vec![egui::Event::ModifiersChanged(m), egui::Event::PointerMoved(f.from)]);
+                    let touch =
+                        |id, phase, pos| egui::Event::Touch { device_id: egui::TouchDeviceId(1), id: egui::TouchId(id), phase, pos, force: None };
+                    frame(&mut f.app, &f.ctx, vec![touch(1, egui::TouchPhase::Start, f.from), MovedGuideFixture::button(f.from, true, m)]);
+                    frame(&mut f.app, &f.ctx, vec![touch(1, egui::TouchPhase::Move, f.to), egui::Event::PointerMoved(f.to)]);
+                    assert!(f.app.session.in_interaction());
+                    assert!(matches!(f.app.session.tool_id(), "selection" | "directSelection"));
+                    let status = f.app.ui.status.clone();
+                    frame(&mut f.app, &f.ctx, vec![touch(2, egui::TouchPhase::Start, f.to + vec2(20.0, 20.0))]);
+                    assert_eq!(f.app.ui.status, status, "cancellation preserves the existing status");
+                    assert_eq!(f.app.session.tool_id(), tool, "cancellation returns a borrowed selection tool");
+                    f.cancelled();
+                }
+            }
+        }
     }
 }
