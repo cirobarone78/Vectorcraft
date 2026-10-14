@@ -28,7 +28,7 @@ stage ([ROADMAP.md](../ROADMAP.md)).
 | 11 | [G5 Brushes, symbols and libraries](#g5-brushes-symbols-and-libraries) | 17–28 | no | [target-app-parity.md](target-app-parity.md) |
 | 12 | [G3 3D and Materials](#g3-3d-and-materials) | 25–45 | no | [effects-parity.md](effects-parity.md) |
 | 13 | [G7 Views and windows](#g7-views-and-windows) | 15–25 | no | [ui-parity.md](ui-parity.md) |
-| 14 | [G6 Automation and scripting](#g6-automation-and-scripting) | 6–12 | no | [target-app-parity.md](target-app-parity.md) |
+| 14 | [G6 Automation and scripting](#g6-automation-and-scripting) | 4–8 | no | [target-app-parity.md](target-app-parity.md) |
 | 15 | [G15 Performance budgets and a GPU renderer](#g15-performance-budgets-and-a-gpu-renderer) | 15–25 | budgets only | [hardware-parity.md](hardware-parity.md) |
 | 16 | [G16 Localization: the three missing key languages](#g16-localization-the-three-missing-key-languages) | 55–90 | no | [localization-parity.md](localization-parity.md) |
 | 17 | [G17 Ecosystem: third-party plug-ins](#g17-ecosystem-third-party-plug-ins) | 20–45 | no | — |
@@ -234,9 +234,9 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 ## G6 Automation and scripting
 
 - **Missing:** a scripting surface over the command registry (Illustrator: JavaScript), Batch, graph variable
-  kinds, dataset import/export. Actions, Variables (text, visibility and image) and full agent control over
+  kinds. Actions, Variables (text, visibility and image), dataset CSV import/export and full agent control over
   MCP are done.
-- **Estimate:** 6–12 h.
+- **Estimate:** 4–8 h.
 
 ## G15 Performance budgets and a GPU renderer
 
@@ -285,6 +285,7 @@ from G14 and the budget run of G15: **~170–270 h** one agent, ~50–80 h wall 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-14 | minor | G6: dataset CSV import/export (`dataset.import` / `dataset.export`); remaining: scripting surface, Batch, graph variables; estimate 6–12 → 4–8 h |
 | 2026-10-14 | minor | G6: image variables (`VariableKind::Image`, `variable.makeImageDynamic`, path values on `dataset.select` keeping bounds); remaining: scripting surface, Batch, graph variables, dataset import/export; estimate 8–14 → 6–12 h |
 | 2026-10-14 | minor | No entry closed. G8 and G11 record the later merges of 2026-10-14 (#1852, #1862–#1865, #1871–#1873, #1839, #1840, #1856); #1683 (Dim Images) and #1685 (failed-save dialog) are done by #1864 and #1865. Gaps noted for reporters: G1 Effect › Warp through Warp Options (#1760), Color Picker Tab order (#1692), aligning to a key anchor (#1636; the public Align page does not say how the key anchor is chosen); G7 custom toolbars (#1759), workspace panel widths (#1753); G11 Shape Builder regions between closed shapes (#1691), deleting an interior anchor of an open path; G13 Intertwine (#1763), gradient mesh from an embedded image (#1676), Image Trace radial gradients (draft #1849). Average and Join with a corner or smooth choice was already listed (G1). G12: a line two merges had left twice is there once, without Appearance of Black for output, which acts since #1750. Estimates unchanged |
 | 2026-10-13 | minor | Pinned PngSuite HTTPS files verified by SHA-256 before publication; bounded downloads replace archive extraction (#1729). Scores and hours unchanged. |
