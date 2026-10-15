@@ -400,8 +400,8 @@ struct Reader<'a> {
     large_canvas: Option<f64>,
     /// This reader reads a pattern's definition (see [`Reader::define_pattern`]).
     pattern: Option<PatternHead>,
-    /// The tile's top left (y down) of each pattern read, by name.
-    pattern_tiles: HashMap<String, Point>,
+    /// The tile (y down) of each pattern read, by name.
+    pattern_tiles: HashMap<String, Rect>,
     /// The legacy text object being read (`To` … `TO`), and the modal type attributes.
     text: Option<legacy_text::LegacyText>,
     type_state: legacy_text::TypeState,
@@ -739,7 +739,7 @@ impl<'a> Reader<'a> {
         let art: Vec<Arc<Node>> = frame.children.iter().map(|n| Arc::new(self.doc.reid(n))).collect();
         let mut def = PatternDef::new(&head.name, art);
         def.tile = FLIP.transform_rect_bbox(tile);
-        if self.pattern_tiles.insert(def.name.clone(), def.tile.origin()).is_some() {
+        if self.pattern_tiles.insert(def.name.clone(), def.tile).is_some() {
             self.doc.patterns.retain(|p| p.name != def.name);
         }
         self.doc.patterns.push(def);
@@ -1283,12 +1283,15 @@ impl<'a> Reader<'a> {
         if bbox.width() <= 0.0 || bbox.height() <= 0.0 {
             return Ok(());
         }
-        // The art's own box onto the object's box (its measure of the same art), upside down:
-        // the object's space has y down, and the PDF's content is kept in its own y-up
-        // coordinates, so the PDF's bottom is the top of the box.
-        let fit = Affine::translate((target.x0, target.y1))
-            * Affine::scale_non_uniform(target.width() / bbox.width(), -target.height() / bbox.height())
-            * Affine::translate((-bbox.x0, -bbox.y0));
+        // The art's own box onto the object's box (its measure of the same art). The PDF importer
+        // hands the art back as the page shows it, and it keeps that orientation unless its
+        // placement mirrors it (a negative determinant): the usual `/RTransform` `1 0 0 -1 …` with
+        // the origin's flip doesn't, and the art then shows as the file's own PDF part draws it.
+        let fit = if place.determinant() < 0.0 {
+            Affine::translate((target.x0, target.y1)) * Affine::scale_non_uniform(target.width() / bbox.width(), -target.height() / bbox.height())
+        } else {
+            Affine::translate((target.x0, target.y0)) * Affine::scale_non_uniform(target.width() / bbox.width(), target.height() / bbox.height())
+        } * Affine::translate((-bbox.x0, -bbox.y0));
         for n in &mut art {
             n.transform(fit, true);
             // The PDF's swatches stay with it: its colours keep their values, unlinked.
@@ -1408,13 +1411,15 @@ impl<'a> Reader<'a> {
             return;
         }
         let name = vals.iter().find_map(|v| if let V::Str(_) = v { v.text() } else { None });
-        let Some(origin) = name.as_deref().and_then(|n| self.pattern_tiles.get(n)).map(|p| p.to_vec2()) else {
+        let Some(tile) = name.as_deref().and_then(|n| self.pattern_tiles.get(n)).copied() else {
             self.unreadable("pattern fills");
             return;
         };
         let matrix = vals.iter().rev().find_map(|v| if let V::Arr(a) = v { paint::affine(&Self::nums(a)) } else { None });
-        // The tile's art (y down from the tile's top left) → the pattern's space → art space.
-        let xf = self.space() * matrix.unwrap_or(Affine::IDENTITY) * FLIP * Affine::translate(origin);
+        // The tile's art (y down from the tile's top left) → the pattern's space → art space. The
+        // tile's lower left is the pattern's origin wherever the definition drew it, as the file's
+        // PDF part tiles it.
+        let xf = self.space() * matrix.unwrap_or(Affine::IDENTITY) * FLIP * Affine::translate((0.0, -tile.height()));
         if xf.determinant().abs() < 1e-12 || !xf.as_coeffs().iter().all(|v| v.is_finite()) {
             self.unreadable("pattern fills");
             return;

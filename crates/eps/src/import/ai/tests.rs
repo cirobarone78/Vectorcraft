@@ -202,6 +202,21 @@ fn patterns_are_pattern_swatches_and_fill_with_them() {
     assert!(s.warnings.is_empty(), "{:?}", s.warnings);
 }
 
+/// Where a definition draws its tile doesn't move the fill: the tile's lower left is the pattern's
+/// origin, so the same dots drawn at 30..38 × 40..48 tile as they do at 0..8 × 0..8.
+#[test]
+fn a_pattern_tiles_from_its_lower_left_wherever_its_definition_drew_it() {
+    let moved = DOTS
+        .replace("(Dots) 0 0 8 8", "(Dots) 30 40 38 48")
+        .replace("%_0 8 m\n%_8 8 L\n%_8 0 L\n%_0 0 L\n%_0 8 L", "%_30 48 m\n%_38 48 L\n%_38 40 L\n%_30 40 L\n%_30 48 L")
+        .replace("%_4 4 m\n%_4 4 L", "%_34 44 m\n%_34 44 L");
+    let body = format!("{moved}{}", layer(&format!("(Dots) 0 0 1 1 0 0 0 0 0 [1 0 0 1 0 0] p\n{}f\n", rect_path(10.0, 20.0, 70.0, 80.0))));
+    let s = read_ok(&body);
+    assert_eq!(s.doc.pattern("Dots").unwrap().tile, Rect::new(30.0, -48.0, 38.0, -40.0));
+    let Paint::Pattern { xf, .. } = fill(&art(&s.doc)[0]) else { panic!() };
+    assert_eq!(xf * Point::ZERO, Point::new(0.0, 92.0));
+}
+
 /// A pattern whose definition it can't read whole isn't kept: a fill with it is something the file
 /// has that isn't read, where it shows. Its definition costs nothing else.
 #[test]
@@ -718,8 +733,8 @@ fn ascii85_comment_lines(bytes: &[u8]) -> String {
 /// `/Bounds` in a space measured from `/Origin` with y down, then `/RTransform`. Two squares at
 /// 1..5 × 2..8 of a 10-point page, blue below red: bounds (1, 2)–(5, 8) → from the origin
 /// (10, 20), y down, (11, 18)–(15, 12) → twice that plus (100, 50): x 122..130, y 74..86 in art
-/// space, which is y 14..26 in the document (crop marks 100 high). The space has y down, so the
-/// PDF's bottom (blue) is the top of the box.
+/// space, which is y 14..26 in the document (crop marks 100 high). That placement mirrors (`2 0 0 2`
+/// with the origin's flip), so the PDF's bottom (blue) is the top of the box.
 #[test]
 fn non_native_art_is_drawn_from_its_pdf_fitted_to_its_bounds() {
     let pdf = tiny_pdf(10.0, "0 0 1 rg 1 2 4 3 re f 1 0 0 rg 1 5 4 3 re f");
@@ -754,6 +769,34 @@ fn non_native_art_is_drawn_from_its_pdf_fitted_to_its_bounds() {
     // Its ids are this document's.
     assert_ne!(group.id, paths[0].id);
     assert_ne!(paths[0].id, paths[1].id);
+}
+
+/// The usual placement, `/RTransform` `1 0 0 -1 …`, doesn't mirror (with the origin's flip its
+/// determinant is positive), so the art shows upright, as the file's own PDF part draws it: the
+/// PDF's top (red) at the top. Bounds
+/// (1, 2)–(5, 8) from the origin (10, 20), y down, → (11, 18)–(15, 12) → x 111..115, y 32..38 in
+/// art space, y 62..68 in the document (crop marks 100 high).
+#[test]
+fn non_native_art_placed_without_a_mirror_stays_upright() {
+    let pdf = tiny_pdf(10.0, "0 0 1 rg 1 2 4 3 re f 1 0 0 rg 1 5 4 3 re f");
+    let foreign = format!(
+        "q\n/ForeignObject :\n1 /Version ,\n1 0 0 -1 100 50  /RTransform ,\n10 20  /Origin ,\n1 2 5 8  /Bounds ,\n/Data ,\n{};\n0 0 Xd\n6 () XW\n0 Ae\n{}h\nW\nn\nQ\n",
+        ascii85_comment_lines(&pdf),
+        rect_path(110.0, 30.0, 116.0, 40.0)
+    );
+    let s = read_ok(&layer(&foreign));
+    assert!(s.warnings.is_empty(), "{:?}", s.warnings);
+    let objects = art(&s.doc);
+    let NodeKind::Group { children, clip: true } = &objects[0].kind else { panic!("{:?}", objects[0].kind) };
+    let group = &children[1];
+    let bounds = group.geometric_bounds().unwrap();
+    for (got, want) in [(bounds.x0, 111.0), (bounds.y0, 62.0), (bounds.x1, 115.0), (bounds.y1, 68.0)] {
+        assert!((got - want).abs() < 1e-6, "{bounds:?}");
+    }
+    let paths = group.children().unwrap();
+    let (blue, red) = (paths[0].geometric_bounds().unwrap(), paths[1].geometric_bounds().unwrap());
+    assert!((red.y0 - 62.0).abs() < 1e-6 && (red.y1 - 65.0).abs() < 1e-6, "red {red:?}");
+    assert!((blue.y0 - 65.0).abs() < 1e-6 && (blue.y1 - 68.0).abs() < 1e-6, "blue {blue:?}");
 }
 
 #[test]

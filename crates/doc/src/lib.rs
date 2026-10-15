@@ -271,14 +271,22 @@ impl Unit {
 fn parse_measure(s: &str, default: Unit) -> Option<f64> {
     let s = s.trim();
     // Simple arithmetic on the right (Illustrator fields accept "10+5", "100/2", "3in*2").
-    for op in ['+', '-', '*', '/'] {
+    // `*` and `/` share one precedence level, so they split at the last of either (left to right).
+    for ops in [&['+'][..], &['-'][..], &['*', '/'][..]] {
         // Past the first character, so a leading sign isn't an operator.
         let skip = s.chars().next().map_or(0, char::len_utf8);
-        if let Some(i) = s[skip..].rfind(op).map(|i| i + skip) {
+        // A `+` or `-` right after another operator is the sign of its operand (`10*-2`, `5--3`).
+        let is_sign = |i: usize| {
+            s.get(i..).and_then(|r| r.chars().next()).is_some_and(|c| matches!(c, '+' | '-'))
+                && s.get(..i).and_then(|l| l.trim_end().chars().last()).is_some_and(|c| "+-*/".contains(c))
+        };
+        let found = s.char_indices().rev().find(|&(i, c)| i >= skip && ops.contains(&c) && !is_sign(i));
+        if let Some(i) = found.map(|(i, _)| i) {
             let (l, r) = (&s[..i], &s[i + 1..]);
             if l.trim().is_empty() {
                 continue;
             }
+            let Some(op) = s[i..].chars().next() else { continue };
             return match op {
                 '+' => Some(parse_measure(l, default)? + parse_measure(r, default)?),
                 '-' => Some(parse_measure(l, default)? - parse_measure(r, default)?),
@@ -304,7 +312,10 @@ fn parse_measure(s: &str, default: Unit) -> Option<f64> {
         && !s.ends_with("pt")
         && !s.ends_with("px")
     {
-        return Some(p.trim().parse::<f64>().ok()? * 12.0 + pt.trim().parse::<f64>().unwrap_or(0.0));
+        // The sign belongs to the whole value: `-2p6` is -(2 picas + 6 points).
+        let sign = if p.trim_start().starts_with('-') { -1.0 } else { 1.0 };
+        let picas = p.trim().parse::<f64>().ok()?.abs();
+        return Some(sign * (picas * 12.0 + pt.trim().parse::<f64>().unwrap_or(0.0)));
     }
     let (v, unit) = number_unit(s)?;
     Some(unit.unwrap_or(default).to_pt(v))
@@ -1781,6 +1792,14 @@ mod tests {
         assert_eq!(Unit::Points.parse("abc"), None);
         assert_eq!(Unit::Points.format(12.5), "12.5 pt");
         assert_eq!(Unit::Inches.format(144.0), "2 in");
+    }
+
+    #[test]
+    fn negative_picas_and_points_sign_applies_to_whole_value() {
+        assert_eq!(Unit::Points.parse("-2p6"), Some(-30.0));
+        assert_eq!(Unit::Points.parse("-0p6"), Some(-6.0));
+        assert_eq!(Unit::Points.parse("-2p"), Some(-24.0));
+        assert_eq!(Unit::Points.parse("2p6"), Some(30.0));
     }
 }
 
