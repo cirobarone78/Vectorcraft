@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use egui::{CornerRadius, Sense, Stroke, StrokeKind, Ui, vec2};
+use egui::{CornerRadius, Sense, Stroke, Ui, vec2};
 use serde_json::json;
 use vectorcraft_doc::NodeKind;
 
@@ -12,39 +12,45 @@ use crate::theme::{self, Tokens};
 use crate::widgets;
 use crate::{VectorcraftApp, icons, menus, titlebar};
 
+/// The application bar's height, in points (compact, as in PhotoCraft).
+pub const APP_BAR_HEIGHT: f32 = 32.0;
+/// The brand mark's side.
+const MARK: f32 = 18.0;
+/// Height of the workspace switcher.
+const WIDGET_H: f32 = 22.0;
+
 /// The application bar: brand mark, Home, menus, then Discord, search and the workspace switcher
 /// at the right. With [`VectorcraftApp::custom_titlebar`] it is also the window's title bar
 /// ([`titlebar`]): the caption buttons take the right end and the rest of the bar drags the window.
+/// With the system title bar (Windows and Linux, `system_title_bar`) the OS draws its own icon and
+/// title, so the in-app bar shows Home, menus and workspace controls only: no brand mark.
 pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
     let t = Tokens::get(ui.ctx());
     let custom = app.custom_titlebar;
-    let left = if app.integrated_titlebar { 78 } else { 8 };
+    let system = system_title_bar(app);
+    let left = app.titlebar_inset.clamp(8.0, f32::from(i8::MAX)) as i8;
     let frame = egui::Frame::NONE.fill(t.app_bar).inner_margin(egui::Margin { left, right: if custom { 0 } else { 14 }, top: 0, bottom: 0 });
-    let bar = egui::Panel::top("app_bar").exact_size(44.0).frame(frame.stroke(Stroke::new(1.0, t.border))).show(ui, |ui| {
+    let bar = egui::Panel::top("app_bar").exact_size(APP_BAR_HEIGHT).frame(frame.stroke(Stroke::new(1.0, t.border))).show(ui, |ui| {
         if custom {
             titlebar::drag_area(ui, ui.max_rect());
         }
         ui.horizontal_centered(|ui| {
-            // Brand mark: the app icon.
-            let (r, _) = ui.allocate_exact_size(vec2(22.0, 22.0), Sense::hover());
-            crate::brand::paint_mark(ui, r);
-            ui.add_space(4.0);
+            // With the system title bar the OS draws its own icon: no in-app brand mark.
+            if !system {
+                let (r, _) = ui.allocate_exact_size(vec2(MARK, MARK), Sense::hover());
+                crate::brand::paint_mark(ui, r);
+                ui.add_space(6.0);
+            }
             let on_home = menus::home_showing(app);
-            if widgets::icon_button(ui, "house", tl!("Home"), on_home, 24.0).clicked() {
+            if widgets::icon_button(ui, "house", tl!("Home"), on_home, 20.0).clicked() {
                 app.run("app.home", json!({})).ok();
             }
             ui.add_space(2.0);
             // With the macOS menu bar the menus are at the top of the screen instead.
-            let menus_end = if app.services.native_menu.is_some() {
-                let full = ui.max_rect();
-                ui.painter().text(full.center(), egui::Align2::CENTER_CENTER, "VectorCraft", egui::FontId::proportional(13.5), t.text);
-                ui.cursor().min.x
-            } else {
-                menus::menu_bar(app, ui)
-            };
+            let menus_end = if app.services.native_menu.is_some() { ui.cursor().min.x } else { menus::menu_bar(app, ui) };
             // The right-side group fills the space after the menus from the right; when it runs
-            // short, Discord goes first (it is also under Help), then the search box becomes an
-            // icon, then the workspace switcher narrows.
+            // short, Discord goes first (it is also under Help), then the search icon (the palette
+            // stays under its shortcut), then the workspace switcher narrows.
             let full = ui.max_rect();
             let right_edge = if custom { full.right() - titlebar::WIDTH - 10.0 } else { full.right() };
             let right = egui::Rect::from_min_max(egui::pos2(menus_end + 8.0, full.top()), egui::pos2(right_edge, full.bottom()));
@@ -55,54 +61,80 @@ pub fn app_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
             let ws = ui.painter().layout_no_wrap(ws_name, egui::FontId::proportional(12.0), t.text);
             let ws_w = (ws.size().x + 36.0).clamp(112.0, 190.0);
             let gap = ui.spacing().item_spacing.x;
-            let with_search = ws_w + 8.0 + gap + 200.0;
-            let search_full = room >= with_search;
-            let discord = room >= with_search + 10.0 + gap + crate::community::discord_width(ui, false);
-            let ws_w = if search_full { ws_w } else { ws_w.min(room - 8.0 - gap - 24.0).max(64.0) };
+            // The search icon, as in PhotoCraft: shown while a minimal switcher fits beside it.
+            let icon = 28.0;
+            let search = room >= 64.0 + 8.0 + gap + icon;
+            let ws_w = ws_w.min(room - 8.0 - gap - if search { icon } else { 0.0 }).max(64.0);
+            let discord = search && room >= ws_w + 8.0 + gap + icon + 10.0 + gap + crate::community::discord_width(ui, false);
             let mut rui = ui.new_child(egui::UiBuilder::new().max_rect(right).layout(egui::Layout::right_to_left(egui::Align::Center)));
             let ui = &mut rui;
             // Workspace switcher: shows the current workspace, opens Window → Workspace.
-            let (wr, wresp) = ui.allocate_exact_size(vec2(ws_w, 24.0), Sense::click());
+            let (wr, wresp) = ui.allocate_exact_size(vec2(ws_w, WIDGET_H), Sense::click());
             ui.painter().rect_filled(wr, CornerRadius::same(4), if wresp.hovered() { t.hover } else { t.panel });
             ui.painter().with_clip_rect(wr.shrink2(vec2(4.0, 0.0))).galley(wr.left_center() + vec2(10.0, -ws.size().y / 2.0), ws, t.text);
             icons::paint(ui, "chevron-down", egui::Rect::from_center_size(wr.right_center() - vec2(12.0, 0.0), vec2(12.0, 12.0)), t.text_dim);
             let wresp = wresp.on_hover_text(tl!("Switch workspace"));
             egui::Popup::menu(&wresp).show(|ui| crate::workspaces::popup(app, ui));
             ui.add_space(8.0);
-            // Search box → command palette.
-            let open_palette = if search_full {
-                let (r, resp) = ui.allocate_exact_size(vec2(200.0, 24.0), Sense::click());
-                ui.painter().rect_filled(r, CornerRadius::same(12), t.input);
-                ui.painter().rect_stroke(
-                    r,
-                    CornerRadius::same(12),
-                    Stroke::new(1.0, if resp.hovered() { t.input_border } else { t.divider }),
-                    StrokeKind::Inside,
-                );
-                icons::paint(ui, "search", egui::Rect::from_center_size(r.left_center() + vec2(14.0, 0.0), vec2(13.0, 13.0)), t.text_dim);
-                ui.painter().text(
-                    r.left_center() + vec2(26.0, 0.0),
-                    egui::Align2::LEFT_CENTER,
-                    tl!("Search commands and tools"),
-                    egui::FontId::proportional(11.5),
-                    t.text_dim,
-                );
-                resp.clicked()
-            } else {
-                widgets::icon_button(ui, "search", tl!("Search commands and tools"), false, 24.0).clicked()
-            };
-            if open_palette {
-                app.ui.palette_open = true;
-                app.ui.palette_query.clear();
+            // Search → command palette (its shortcut opens it too).
+            if search {
+                let tip = match menus::shortcut_of("help.commandPalette") {
+                    Some(sc) => format!("{}  ({})", tl!("Search commands and tools"), menus::pretty_shortcut(sc)),
+                    None => tl!("Search commands and tools").to_string(),
+                };
+                if widgets::icon_button(ui, "search", &tip, app.ui.palette_open, icon).clicked() {
+                    app.ui.palette_open = !app.ui.palette_open;
+                    app.ui.palette_query.clear();
+                }
             }
             if discord {
                 ui.add_space(10.0);
                 crate::community::discord_button(app, ui, false);
             }
+            if app.services.native_menu.is_some() {
+                let title = ui.painter().layout_no_wrap("VectorCraft".into(), egui::FontId::proportional(13.5), t.text);
+                let title_rect = egui::Rect::from_center_size(full.center(), title.size());
+                // Keep the title centered only while the interactive groups leave room for it.
+                if title_rect.left() >= menus_end + 8.0 && title_rect.right() <= ui.min_rect().left() - 8.0 {
+                    ui.painter().galley(title_rect.min, title, t.text);
+                }
+            }
         });
     });
     if custom {
         titlebar::caption_buttons(app, ui, bar.response.rect);
+    }
+}
+
+/// Whether the window shows the system's title bar instead of the app drawing its own: Windows
+/// and Linux with Preferences › User Interface › System Title Bar. macOS always has system
+/// decorations, but keeps the in-app brand mark, so it never counts as system mode here; nor
+/// does the web build (the browser tab has no document title), nor an embedder that never
+/// turned the preference on.
+pub fn system_title_bar(app: &VectorcraftApp) -> bool {
+    !app.custom_titlebar && app.session.prefs.system_title_bar && !cfg!(any(target_os = "macos", target_arch = "wasm32"))
+}
+
+/// The OS window title: the active document's name suffixed with the app name (a `*` prefix
+/// marks unsaved changes, like the `*` in the document tabs), or just the app name with no
+/// document open.
+pub fn window_title(app: &VectorcraftApp) -> String {
+    app.session
+        .active()
+        .map(|d| format!("{}{} \u{2014} VectorCraft", if d.is_dirty() { "*" } else { "" }, d.title()))
+        .unwrap_or_else(|| "VectorCraft".into())
+}
+
+/// Keep the OS window title (and the taskbar / Alt-Tab entry) on the active file. Sends
+/// `ViewportCommand::Title` only when the title changed since the last frame.
+pub fn sync_window_title(app: &mut VectorcraftApp, ctx: &egui::Context) {
+    let want = window_title(app);
+    if app.last_window_title != want {
+        app.last_window_title = want.clone();
+        ctx.send_viewport_cmd(egui::ViewportCommand::Title(want));
+        // One more frame: a new title makes AppKit lay its title bar out again, putting the window
+        // buttons back where it keeps them until the next frame centres them on the bar (#968).
+        ctx.request_repaint();
     }
 }
 
@@ -123,7 +155,9 @@ pub enum AnchorControls {
 
 /// Which anchor controls show for the selection and the active tool.
 pub fn anchor_controls(app: &VectorcraftApp) -> AnchorControls {
-    let Some(st) = app.session.active() else { return AnchorControls::None };
+    let Some(st) = app.session.active() else {
+        return AnchorControls::None;
+    };
     if !st.selection.anchors.is_empty() {
         return AnchorControls::All;
     }
@@ -199,7 +233,9 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                 let first = sel.first().and_then(|id| st.doc.node(*id)).cloned();
                 let anchors = anchor_controls(app);
                 let label = match &first {
-                    Some(_) if sel.len() == 1 && anchors != AnchorControls::None => tl!("Anchor Point"),
+                    Some(_) if sel.len() == 1 && anchors != AnchorControls::None => {
+                        tl!("Anchor Point")
+                    }
                     Some(vectorcraft_doc::Node { kind: NodeKind::Image(im), .. }) if sel.len() == 1 => {
                         if im.link.is_some() {
                             tl!("Linked File")
@@ -207,7 +243,9 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                             tl!("Embedded")
                         }
                     }
-                    Some(n) if sel.len() == 1 && crate::panels::image_trace::is_trace(n) => tl!("Image Tracing"),
+                    Some(n) if sel.len() == 1 && crate::panels::image_trace::is_trace(n) => {
+                        tl!("Image Tracing")
+                    }
                     _ => tl!(crate::panels::appearance::object_label(app)),
                 };
                 ui.label(egui::RichText::new(label).font(theme::semibold(12.0)).color(t.text));
@@ -265,23 +303,7 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                     }
                     return;
                 }
-                // Align buttons.
-                for (icon, tip, p) in [
-                    ("align-start-vertical", "Horizontal Align Left", json!({"horizontal": "left"})),
-                    ("align-center-vertical", "Horizontal Align Center", json!({"horizontal": "center"})),
-                    ("align-end-vertical", "Horizontal Align Right", json!({"horizontal": "right"})),
-                    ("align-start-horizontal", "Vertical Align Top", json!({"vertical": "top"})),
-                    ("align-center-horizontal", "Vertical Align Center", json!({"vertical": "center"})),
-                    ("align-end-horizontal", "Vertical Align Bottom", json!({"vertical": "bottom"})),
-                ] {
-                    if widgets::icon_button(ui, icon, tl!(tip), false, 24.0).clicked() {
-                        let mut p = p;
-                        if sel.len() == 1 {
-                            p["to"] = json!("artboard");
-                        }
-                        app.run("object.align", p).ok();
-                    }
-                }
+                crate::panels::align::align_buttons(app, ui, 24.0);
                 ui.separator();
                 // The Transform link opens the whole Transform panel (reference point, rotate,
                 // shear, options) in a popover; X/Y/W/H follow inline while the bar has room.
@@ -291,15 +313,21 @@ pub fn control_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                     && ui.available_width() >= INLINE_TRANSFORM_WIDTH
                 {
                     let c = b.center();
+                    let origin = app.ruler_origin();
                     let link = app.session.prefs.constrain_proportions;
-                    for (k, lbl, v) in [("x", "X:", c.x), ("y", "Y:", c.y), ("width", "W:", b.rect.width()), ("height", "H:", b.rect.height())] {
+                    for (k, lbl, v, offset) in [
+                        ("x", "X:", c.x, origin.x),
+                        ("y", "Y:", c.y, origin.y),
+                        ("width", "W:", b.rect.width(), 0.0),
+                        ("height", "H:", b.rect.height(), 0.0),
+                    ] {
                         // The W/H link sits between W and H.
                         if k == "height" {
                             crate::panels::transform::constrain_link(app, ui);
                         }
                         widgets::field_label(ui, egui::RichText::new(tl!(lbl)).size(12.0).color(t.text_dim));
-                        if let Some(nv) = widgets::num_field(ui, ("cb", k), Some(v), units, 80.0) {
-                            app.run("object.setBounds", json!({k: nv, "reference": 4, "proportional": link})).ok();
+                        if let Some(nv) = widgets::num_field(ui, ("cb", k), Some(v - offset), units, 80.0) {
+                            app.run("object.setBounds", json!({k: nv + offset, "reference": 4, "proportional": link})).ok();
                         }
                     }
                 }
@@ -540,8 +568,12 @@ pub fn status_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.label(
                         egui::RichText::new(format!(
-                            "render {:.1} ms · ui {:.1} ms · {:.0} fps",
-                            app.perf.render_ms, app.perf.frame_ms, app.perf.fps
+                            "{} {:.1} ms · {} {:.1} ms · {:.0} fps",
+                            crate::i18n::tr_ctx(crate::i18n::current(), "diagnostics", "render"),
+                            app.perf.render_ms,
+                            crate::i18n::tr_ctx(crate::i18n::current(), "diagnostics", "ui"),
+                            app.perf.frame_ms,
+                            app.perf.fps
                         ))
                         .size(10.5)
                         .color(t.text_disabled),
@@ -552,16 +584,19 @@ pub fn status_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                             egui::RichText::new(format!("X: {}  Y: {}", u.readout(p.x), u.readout(p.y))).font(theme::mono(10.5)).color(t.text_dim),
                         );
                     }
-                    // Background saves and exports in progress, else the last message.
-                    if let Some(job) = app.background.jobs.first() {
-                        let more = app.background.jobs.len() - 1;
-                        let label = crate::i18n::msg(&job.label);
+                    // Background saves, exports and opens in progress, else the last message.
+                    let busy: Vec<&str> =
+                        app.background.jobs.iter().map(|j| j.label.as_str()).chain(app.opening.pending.iter().map(|p| p.label.as_str())).collect();
+                    if let Some(job) = busy.first() {
+                        let more = busy.len() - 1;
+                        let label = crate::i18n::msg(job);
                         let text = if more > 0 { format!("{label}… (+{more})") } else { format!("{label}…") };
-                        ui.label(egui::RichText::new(text).size(11.0).color(t.text));
                         ui.add(egui::Spinner::new().size(12.0).color(t.accent));
+                        ui.add(egui::Label::new(egui::RichText::new(text).size(11.0).color(t.text)).truncate());
                     } else if !app.ui.status.is_empty() {
                         // The message stays English in `ui.status` (agents and tests read it).
-                        ui.label(egui::RichText::new(crate::i18n::msg(&app.ui.status)).size(11.0).color(t.text));
+                        let message = crate::i18n::msg(&app.ui.status);
+                        ui.add(egui::Label::new(egui::RichText::new(message).size(11.0).color(t.text)).truncate());
                     }
                 });
             });
@@ -795,10 +830,14 @@ pub fn hint_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
                 ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, "?", theme::semibold(11.0), t.text);
                 ui.add_space(6.0);
                 let mut job = egui::text::LayoutJob::default();
-                let tool = app.session.tool_id();
-                // The Zoom tool's drag zooms to an area, or with Animated Zoom zooms as it goes.
-                let hint = if tool == "zoom" && crate::canvas::animated_zoom(&app.session.prefs) { ANIMATED_ZOOM_HINT } else { tool };
-                for (txt, bold) in hint_segments(hint) {
+                let segments = if let Some(d) = app.ui.dialog.as_ref().filter(|d| crate::dialogs::revolve_gizmo::active(d)) {
+                    vec![(crate::dialogs::revolve_gizmo::hint(d).into(), false)]
+                } else {
+                    let tool = app.session.tool_id();
+                    let hint = if tool == "zoom" && crate::canvas::animated_zoom(&app.session.prefs) { ANIMATED_ZOOM_HINT } else { tool };
+                    hint_segments(hint)
+                };
+                for (txt, bold) in segments {
                     let font = if bold { theme::semibold(12.5) } else { egui::FontId::proportional(12.5) };
                     job.append(&txt, 0.0, egui::TextFormat { font_id: font, color: if bold { t.text_strong } else { t.text }, ..Default::default() });
                 }
@@ -937,6 +976,168 @@ mod tests {
         assert!(app.run("view.goToArtboard", json!({"index": "sideways"})).is_err());
     }
 
+    fn artboard_navigation_app(tool: &str) -> (crate::VectorcraftApp, vectorcraft_doc::NodeId) {
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        app.run("file.new", json!({"width": 200, "height": 100, "artboards": 3})).unwrap();
+        let id = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 30, "height": 20})).unwrap()["id"].as_u64().unwrap();
+        app.run("select.set", json!({"ids": [id]})).unwrap();
+        app.canvas_rect = Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(460.0, 260.0)));
+        app.select_tool(tool);
+        crate::i18n::set_current(crate::i18n::Lang::EN);
+        (app, vectorcraft_doc::NodeId(id))
+    }
+
+    /// Click the actual status-bar Next control, without sending a canvas pointer event.
+    fn artboard_navigation_next(app: &mut crate::VectorcraftApp, ctx: &egui::Context) {
+        let buttons = navigator(app, ctx, vec![]);
+        assert_eq!(buttons.len(), 4);
+        let at = buttons[2].center();
+        assert!(!app.canvas_rect.unwrap().contains(at));
+        let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        for event in [egui::Event::PointerMoved(at), button(true), button(false)] {
+            navigator(app, ctx, vec![event]);
+        }
+    }
+
+    fn artboard_navigation_properties_frame(
+        app: &mut crate::VectorcraftApp,
+        ctx: &egui::Context,
+        events: Vec<egui::Event>,
+    ) -> Vec<(String, egui::Rect)> {
+        let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 700.0));
+        let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events, ..Default::default() }, |ui| {
+            egui::Panel::right("navigation-properties").exact_size(300.0).show(ui, |ui| crate::panels::properties::show(app, ui));
+        });
+        out.textures_delta.clear();
+        out.shapes
+            .iter()
+            .filter_map(|s| match &s.shape {
+                egui::Shape::Text(t) => Some((t.galley.text().to_string(), egui::Rect::from_min_size(t.pos, t.galley.size()))),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// None clicks Properties' Delete Artboard; Some routes the real key through shortcuts.
+    fn artboard_navigation_delete(key: Option<egui::Key>) {
+        for multiple in [false, true] {
+            let (mut app, id) = artboard_navigation_app("artboard");
+            let selected = if multiple { json!([0, 2]) } else { json!([0]) };
+            app.session.set_tool_option("selected", &selected);
+            assert_eq!(app.view().unwrap().artboard, 0);
+            assert_eq!(app.session.tool_options()["active"], json!(0));
+            assert_eq!(app.session.tool_options()["selected"], selected);
+            app.session.active_mut().unwrap().mark_saved();
+            let st = app.session.active().unwrap();
+            let before = st.doc.clone();
+            let selection = st.selection.clone();
+            let undo = st.history.undo.len();
+            let ctx = egui::Context::default();
+
+            artboard_navigation_next(&mut app, &ctx);
+
+            assert_eq!(app.view().unwrap().artboard, 1, "Next shows board 2");
+            assert_eq!(app.session.tool_options()["active"], json!(1), "Next must change the destructive target before deletion");
+            assert_eq!(app.session.tool_options()["selected"], json!([1]), "navigation replaces the old artboard multiselection");
+            assert_eq!(app.view().unwrap().center, before.artboards[1].rect.center());
+            let st = app.session.active().unwrap();
+            assert_eq!(st.doc, before, "navigation only changes view and tool state");
+            assert_eq!(st.selection, selection, "ordinary artwork stays selected");
+            assert_eq!(st.history.undo.len(), undo);
+            assert!(st.history.redo.is_empty());
+            assert!(!st.is_dirty());
+
+            if let Some(key) = key {
+                let ev = egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Default::default() };
+                let screen = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1200.0, 300.0));
+                let mut out = ctx.run_ui(egui::RawInput { screen_rect: Some(screen), events: vec![ev], ..Default::default() }, |ui| {
+                    crate::shortcuts::handle(&mut app, ui.ctx());
+                    super::status_bar(&mut app, ui);
+                });
+                out.textures_delta.clear();
+            } else {
+                artboard_navigation_properties_frame(&mut app, &ctx, vec![]);
+                let texts = artboard_navigation_properties_frame(&mut app, &ctx, vec![]);
+                assert!(texts.iter().any(|(label, _)| label == &before.artboards[1].name), "Properties shows the navigated board");
+                let at = texts.iter().find(|(label, _)| label == "Delete Artboard").map(|(_, rect)| rect.center()).expect("Properties Delete button");
+                assert!(!app.canvas_rect.unwrap().contains(at));
+                let button =
+                    |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+                for event in [egui::Event::PointerMoved(at), button(true), button(false)] {
+                    artboard_navigation_properties_frame(&mut app, &ctx, vec![event]);
+                }
+            }
+
+            let st = app.session.active().unwrap();
+            assert_eq!(
+                st.doc.artboards,
+                vec![before.artboards[0].clone(), before.artboards[2].clone()],
+                "first and third original board records survive"
+            );
+            assert_eq!(st.doc.node(id), before.node(id), "selected artwork survives unchanged");
+            assert_eq!(st.selection, selection);
+            assert_eq!(st.history.undo.len(), undo + 1);
+            assert_eq!(st.history.undo.last().unwrap().label, "Delete Artboard");
+            assert!(st.history.redo.is_empty());
+            assert!(st.is_dirty());
+            let deleted = st.doc.clone();
+            app.run("edit.undo", json!({})).unwrap();
+            let st = app.session.active().unwrap();
+            assert_eq!(st.doc, before, "one Undo restores every board and the artwork");
+            assert_eq!(st.selection, selection);
+            assert_eq!((st.history.undo.len(), st.history.redo.len()), (undo, 1));
+            assert!(!st.is_dirty());
+            app.run("edit.redo", json!({})).unwrap();
+            assert_eq!(app.session.active().unwrap().doc, deleted);
+        }
+    }
+
+    #[test]
+    fn artboard_navigation_next_then_delete_uses_shown_board() {
+        artboard_navigation_delete(Some(egui::Key::Delete));
+    }
+
+    #[test]
+    fn artboard_navigation_next_then_backspace_uses_shown_board() {
+        artboard_navigation_delete(Some(egui::Key::Backspace));
+    }
+
+    #[test]
+    fn artboard_navigation_next_then_properties_delete_uses_shown_board() {
+        artboard_navigation_delete(None);
+    }
+
+    #[test]
+    fn artboard_navigation_preserves_other_tools_selection_and_history() {
+        for tool in ["selection", "rectangle"] {
+            let (mut app, _) = artboard_navigation_app(tool);
+            app.run("object.move", json!({"dx": 7, "dy": 9})).unwrap();
+            let redo = app.session.active().unwrap().doc.clone();
+            app.run("edit.undo", json!({})).unwrap();
+            app.session.active_mut().unwrap().mark_saved();
+            let st = app.session.active().unwrap();
+            let before = st.doc.clone();
+            let selection = st.selection.clone();
+            let history = (st.history.undo.len(), st.history.redo.len());
+            assert_eq!(history.1, 1);
+            let options = app.session.tool_options();
+
+            artboard_navigation_next(&mut app, &egui::Context::default());
+
+            assert_eq!(app.view().unwrap().artboard, 1);
+            assert_eq!(app.view().unwrap().center, before.artboards[1].rect.center());
+            assert_eq!(app.session.tool_id(), tool);
+            assert_eq!(app.session.tool_options(), options);
+            let st = app.session.active().unwrap();
+            assert_eq!(st.doc, before);
+            assert_eq!(st.selection, selection);
+            assert_eq!((st.history.undo.len(), st.history.redo.len()), history);
+            assert!(!st.is_dirty());
+            app.run("edit.redo", json!({})).unwrap();
+            assert_eq!(app.session.active().unwrap().doc, redo, "navigation preserves the original Redo branch");
+        }
+    }
+
     #[test]
     fn the_tab_title_names_the_opacity_mask_while_it_is_edited() {
         let mut s = Session::new();
@@ -977,5 +1178,240 @@ mod tests {
         app.run("prefs.set", json!({"key": "animatedZoom", "value": false})).unwrap();
         let off = hint(&mut app);
         assert!(off.contains(" to zoom into an area") && !off.contains("Hold"), "{off}");
+    }
+
+    fn title_test_app(custom_titlebar: bool) -> crate::VectorcraftApp {
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        app.custom_titlebar = custom_titlebar;
+        // The preference that makes the shell launch without its own title bar.
+        app.run("prefs.set", json!({"key": "systemTitleBar", "value": !custom_titlebar})).unwrap();
+        app
+    }
+
+    #[test]
+    fn without_the_preference_the_mark_stays() {
+        // The default (e.g. the web build): no custom bar, no preference.
+        let app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        assert!(!super::system_title_bar(&app));
+    }
+
+    #[test]
+    fn window_title_with_no_document_is_the_app_name() {
+        assert_eq!(super::window_title(&title_test_app(true)), "VectorCraft");
+    }
+
+    #[test]
+    fn window_title_follows_the_active_file() {
+        let mut app = title_test_app(true);
+        app.run("file.new", json!({"width": 100, "height": 100, "name": "foo.svg"})).unwrap();
+        assert_eq!(super::window_title(&app), "foo.svg \u{2014} VectorCraft");
+        // Unsaved changes gain a `*` prefix, like the `*` in the document tabs.
+        app.run("shape.rectangle", json!({"x": 0, "y": 0, "width": 10, "height": 10})).unwrap();
+        assert_eq!(super::window_title(&app), "*foo.svg \u{2014} VectorCraft");
+    }
+
+    #[test]
+    fn system_mode_hides_the_mark() {
+        for custom in [true, false] {
+            let mut app = title_test_app(custom);
+            app.run("file.new", json!({"width": 100, "height": 100, "name": "foo.svg"})).unwrap();
+            let ctx = egui::Context::default();
+            crate::theme::install_fonts(&ctx);
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| super::app_bar(&mut app, ui));
+            let uploads = out.textures_delta.set.values().flat_map(|d| d.iter()).filter(|d| d.image.size() == [128, 128]).count();
+            out.textures_delta.clear();
+            let marks: Vec<egui::Rect> = out
+                .shapes
+                .iter()
+                .filter_map(|c| match &c.shape {
+                    egui::Shape::Mesh(m) if m.texture_id == crate::brand::texture_id(&ctx) => Some(m.calc_bounds()),
+                    _ => None,
+                })
+                .collect();
+            let system = super::system_title_bar(&app);
+            assert_eq!(system, !custom && !cfg!(target_os = "macos"));
+            assert_eq!(marks.is_empty(), system, "mark in system mode (custom={custom})");
+            assert_eq!(uploads, if system { 0 } else { 1 }, "mark texture in system mode (custom={custom})");
+        }
+    }
+
+    #[test]
+    fn sync_window_title_sends_only_on_change() {
+        let mut app = title_test_app(true);
+        let ctx = egui::Context::default();
+        crate::theme::install_fonts(&ctx);
+        super::sync_window_title(&mut app, &ctx);
+        assert_eq!(app.last_window_title, "VectorCraft");
+        let mut out = ctx.run_ui(egui::RawInput::default(), |_| {});
+        out.textures_delta.clear();
+        let cmds = out.viewport_output.remove(&egui::ViewportId::ROOT).map(|v| v.commands).unwrap_or_default();
+        assert!(cmds.iter().any(|c| matches!(c, egui::ViewportCommand::Title(t) if t == "VectorCraft")), "{cmds:?}");
+        // Same document state again: the cached title stops a repeat command.
+        super::sync_window_title(&mut app, &ctx);
+        let mut out = ctx.run_ui(egui::RawInput::default(), |_| {});
+        out.textures_delta.clear();
+        let cmds = out.viewport_output.remove(&egui::ViewportId::ROOT).map(|v| v.commands).unwrap_or_default();
+        assert!(!cmds.iter().any(|c| matches!(c, egui::ViewportCommand::Title(_))), "repeat Title: {cmds:?}");
+        app.run("file.new", json!({"width": 100, "height": 100, "name": "foo.svg"})).unwrap();
+        super::sync_window_title(&mut app, &ctx);
+        assert_eq!(app.last_window_title, "foo.svg \u{2014} VectorCraft");
+    }
+}
+
+#[cfg(test)]
+mod visual_regressions {
+    use super::*;
+
+    fn scaled_input(size: egui::Vec2, scale: f32) -> egui::RawInput {
+        let mut input = egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, size)), ..Default::default() };
+        input.viewports.entry(egui::ViewportId::ROOT).or_default().native_pixels_per_point = Some(scale);
+        input
+    }
+
+    struct NativeMenus;
+    impl crate::native_menu::Backend for NativeMenus {
+        fn sync(&mut self, _: &crate::native_menu::MenuBar) {}
+        fn drain(&mut self) -> Vec<crate::native_menu::Event> {
+            Vec::new()
+        }
+    }
+
+    #[test]
+    fn capture_chrome_visual_fixtures() {
+        let Some(directory) = std::env::var_os("CRAFT_UI_VISUAL_FIXTURES").map(std::path::PathBuf::from) else {
+            return;
+        };
+        std::fs::create_dir_all(&directory).unwrap();
+        for brightness in theme::Brightness::ALL {
+            for width in [800.0, 1280.0] {
+                for scale in [1.0, 1.5, 2.0] {
+                    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                    app.services.native_menu = Some(crate::native_menu::NativeMenu::new(Box::new(NativeMenus)));
+                    app.ui.status = format!("Saved /Users/example/Documents/{}/illustration.svg", "long-folder-name/".repeat(10));
+                    let mut ready = false;
+                    let mut harness =
+                        egui_kittest::Harness::builder().with_size(vec2(width, 200.0)).with_pixels_per_point(scale).wgpu().build_ui_state(
+                            move |ui, app: &mut VectorcraftApp| {
+                                if !ready {
+                                    egui_extras::install_image_loaders(ui.ctx());
+                                    theme::install_fonts(ui.ctx());
+                                    theme::apply(ui.ctx(), brightness);
+                                    ready = true;
+                                    return;
+                                }
+                                app_bar(app, ui);
+                                status_bar(app, ui);
+                            },
+                            app,
+                        );
+                    harness.input_mut().max_texture_side = Some(8192);
+                    harness.run_steps(4);
+                    let stem = format!("vectorcraft-chrome-{brightness:?}-{width}-{scale}x");
+                    harness.render().unwrap().save(directory.join(format!("{stem}.png"))).unwrap();
+                    let mut regions = serde_json::Map::new();
+                    for id in ["app_bar", "status_bar"] {
+                        let rect = egui::containers::panel::PanelState::load(&harness.ctx, egui::Id::new(id)).unwrap().outer_rect;
+                        regions.insert(id.into(), json!([rect.left(), rect.top(), rect.width(), rect.height()]));
+                    }
+                    let dynamic: Vec<_> = harness
+                        .output()
+                        .shapes
+                        .iter()
+                        .filter_map(|shape| match &shape.shape {
+                            egui::Shape::Text(text) if text.galley.job.text.contains(" fps") => {
+                                let r = text.visual_bounding_rect();
+                                Some(json!([r.left(), r.top(), r.width(), r.height()]))
+                            }
+                            _ => None,
+                        })
+                        .collect();
+                    std::fs::write(
+                        directory.join(format!("{stem}.json")),
+                        serde_json::to_vec_pretty(&json!({
+                            "screen": [width, 200.0], "scale": scale, "regions": regions, "native_dynamic_text_regions": dynamic
+                        }))
+                        .unwrap(),
+                    )
+                    .unwrap();
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn native_title_does_not_overlap_header_controls() {
+        for brightness in theme::Brightness::ALL {
+            for width in [800.0, 1280.0] {
+                for scale in [1.0, 1.5, 2.0] {
+                    let ctx = egui::Context::default();
+                    egui_extras::install_image_loaders(&ctx);
+                    theme::install_fonts(&ctx);
+                    theme::apply(&ctx, brightness);
+                    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                    app.services.native_menu = Some(crate::native_menu::NativeMenu::new(Box::new(NativeMenus)));
+                    let mut output = ctx.run_ui(scaled_input(vec2(width, 640.0), scale), |ui| app_bar(&mut app, ui));
+                    output.textures_delta.clear();
+                    assert_eq!(ctx.content_rect().size(), vec2(width, 640.0));
+                    assert_eq!(ctx.pixels_per_point(), scale);
+                    let texts: Vec<_> = output
+                        .shapes
+                        .iter()
+                        .filter_map(|shape| match &shape.shape {
+                            egui::Shape::Text(text) => Some(text),
+                            _ => None,
+                        })
+                        .collect();
+                    let title = texts.iter().find(|text| text.galley.job.text == "VectorCraft");
+                    if width >= 1280.0 {
+                        assert!(title.is_some(), "the title remains visible when the header has room");
+                    }
+                    if let Some(title) = title {
+                        for text in texts.iter().filter(|text| text.galley.job.text != "VectorCraft") {
+                            assert!(
+                                !title.visual_bounding_rect().intersects(text.visual_bounding_rect()),
+                                "{width}: title overlaps {:?}",
+                                text.galley.job.text
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn long_status_stays_between_navigation_and_performance_readouts() {
+        for brightness in theme::Brightness::ALL {
+            for width in [800.0, 1280.0] {
+                for scale in [1.0, 1.5, 2.0] {
+                    let ctx = egui::Context::default();
+                    egui_extras::install_image_loaders(&ctx);
+                    theme::install_fonts(&ctx);
+                    theme::apply(&ctx, brightness);
+                    let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+                    app.ui.status = format!("Saved /Users/example/Documents/{}/illustration.svg", "long-folder-name/".repeat(10));
+                    let mut output = ctx.run_ui(scaled_input(vec2(width, 640.0), scale), |ui| status_bar(&mut app, ui));
+                    output.textures_delta.clear();
+                    assert_eq!(ctx.content_rect().size(), vec2(width, 640.0));
+                    assert_eq!(ctx.pixels_per_point(), scale);
+                    let texts: Vec<_> = output
+                        .shapes
+                        .iter()
+                        .filter_map(|shape| match &shape.shape {
+                            egui::Shape::Text(text) => Some(text),
+                            _ => None,
+                        })
+                        .collect();
+                    let status = texts.iter().find(|text| text.galley.job.text.starts_with("Saved ")).expect("status stays visible");
+                    assert_eq!(status.galley.rows.len(), 1, "status is one line");
+                    assert!(status.galley.elided, "long status retains the full text for the label tooltip");
+                    let bounds = status.visual_bounding_rect();
+                    assert!(bounds.left() >= 0.0 && bounds.right() <= width, "{width}: {bounds:?}");
+                    for text in texts.iter().filter(|text| !text.galley.job.text.starts_with("Saved ")) {
+                        assert!(!bounds.intersects(text.visual_bounding_rect()), "{width}: status overlaps {:?}", text.galley.job.text);
+                    }
+                }
+            }
+        }
     }
 }

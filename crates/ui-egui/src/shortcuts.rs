@@ -213,16 +213,24 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
         return;
     }
     if app.ui.dialog.is_some() || app.ui.palette_open {
+        if app.ui.dialog.as_ref().is_some_and(crate::dialogs::revolve_gizmo::active) && crate::dialogs::revolve_gizmo::dragging(ctx) {
+            // Escape first restores this rotation gesture. The settings stay open.
+            return;
+        }
         if crate::shortcut_editor::is_recording(app) {
             return;
         }
         if ctx.input(|i| i.key_pressed(Key::Escape)) {
-            app.ui.dialog = None;
+            crate::dialogs::cancel(app);
             app.ui.palette_open = false;
         }
         return;
     }
     let typing = ctx.egui_wants_keyboard_input();
+    // Escape closes Edit Toolbar's drawer first (egui drops a drag from it on Escape already).
+    if app.ui.tools_drawer && !typing && ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+        app.ui.tools_drawer = false;
+    }
     let view = app.view_info();
     // While an IME composes, Enter and Escape are its own (confirm / cancel).
     let composing = app.session.tool_composing();
@@ -357,6 +365,16 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
     ] {
         if ctx.input(|i| i.key_pressed(k)) && app.session.tool_claims_key(tk, view) && ctx.input_mut(|i| i.consume_key(m, k)) {
             let r = app.session.tool_key(tk, crate::canvas::mods(m, false), view);
+            // Keyboard actions can change the Artboard tool's active board too. Keep the
+            // navigator aligned with its valid survivor, as pointer dispatch does.
+            if r.is_ok()
+                && app.session.tool_id() == "artboard"
+                && let Some(i) = app.session.tool_options()["active"].as_u64().and_then(|i| usize::try_from(i).ok())
+                && app.session.active().is_some_and(|d| i < d.doc.artboards.len())
+                && let Some(v) = app.view_mut()
+            {
+                v.artboard = i;
+            }
             crate::canvas::apply_requests(app, r);
             return;
         }
@@ -381,6 +399,38 @@ pub fn handle(app: &mut VectorcraftApp, ctx: &egui::Context) {
                 crate::canvas::apply_requests(app, r);
                 return;
             }
+        }
+    }
+    // `[` and `]` the active tool takes (the Blob Brush's and the Eraser's size, the Symbolism
+    // tools' diameter, with Shift their intensity). Read as typed, so
+    // layouts where a bracket takes Option or AltGr count too; `{` and `}` are Shift's.
+    if !(m.command || m.ctrl) {
+        let typed: Vec<(String, ToolKey, bool)> = ctx.input(|i| {
+            i.events
+                .iter()
+                .filter_map(|e| match e {
+                    egui::Event::Text(t) => match t.as_str() {
+                        "[" => Some((t.clone(), ToolKey::BracketLeft, false)),
+                        "]" => Some((t.clone(), ToolKey::BracketRight, false)),
+                        "{" => Some((t.clone(), ToolKey::BracketLeft, true)),
+                        "}" => Some((t.clone(), ToolKey::BracketRight, true)),
+                        _ => None,
+                    },
+                    _ => None,
+                })
+                .collect()
+        });
+        let mut taken = false;
+        for (text, key, shift) in typed {
+            if app.session.tool_claims_key(key, view) {
+                ctx.input_mut(|i| i.events.retain(|e| !matches!(e, egui::Event::Text(t) if *t == text)));
+                let r = app.session.tool_key(key, Mods { shift, ..Mods::default() }, view);
+                crate::canvas::apply_requests(app, r);
+                taken = true;
+            }
+        }
+        if taken {
+            return;
         }
     }
     // Command shortcuts.
@@ -507,6 +557,44 @@ mod tests {
         assert!(!app.ui.view.bounding_box);
     }
 
+    /// Cmd+Shift+L, C, R, J and F align paragraphs (#1111): every paragraph of the selected type,
+    /// or while the Type tool edits text, those its selection touches.
+    #[test]
+    fn cmd_shift_letters_align_paragraphs() {
+        use vectorcraft_doc::Justify;
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+        let id = app.session.execute("text.create", &json!({"x": 20, "y": 50, "text": "One\nTwo"})).unwrap()["id"].as_u64().unwrap();
+        let chord =
+            |key| egui::Event::Key { key, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::COMMAND | Modifiers::SHIFT };
+        let paras = |app: &VectorcraftApp| match &app.session.active().unwrap().doc.node(vectorcraft_doc::NodeId(id)).unwrap().kind {
+            vectorcraft_doc::NodeKind::Text(t) => (0..t.paragraph_count()).map(|i| t.para_at(i).justify).collect::<Vec<_>>(),
+            _ => panic!("text"),
+        };
+        app.session.execute("select.set", &json!({"ids": [id]})).unwrap();
+        for (key, want) in [
+            (Key::C, Justify::Center),
+            (Key::R, Justify::Right),
+            (Key::J, Justify::JustifyLeft),
+            (Key::F, Justify::JustifyAll),
+            (Key::L, Justify::Left),
+        ] {
+            frame(&mut app, vec![chord(key)]);
+            assert_eq!(paras(&app), [want, want], "{key:?}");
+        }
+        // With the Type tool, only the paragraph its selection touches.
+        app.select_tool("type");
+        app.session.apply_actions(vec![vectorcraft_tools::Action::Notify("text.editNew".into())]).unwrap();
+        app.session.set_tool_option("select", &json!({"start": 5, "end": 6}));
+        assert!(app.session.tool_wants_text());
+        frame(&mut app, vec![chord(Key::R)]);
+        assert_eq!(paras(&app), [Justify::Left, Justify::Right]);
+        // Nothing selected: nothing to align.
+        app.select_tool("selection");
+        app.session.execute("select.none", &json!({})).unwrap();
+        assert!(!crate::menus::enabled(&app, "type.alignCenter"));
+    }
+
     /// Tab shows and hides the panels, and in the Type tool it types a tab, without moving the
     /// keyboard focus on to a field: the keys after it (a tool letter, the next letter typed) still
     /// work.
@@ -620,7 +708,8 @@ mod tests {
             out.textures_delta.clear();
         };
         let kind = |app: &VectorcraftApp| app.ui.dialog.as_ref().map(|d| d.kind.clone());
-        let steps = |app: &VectorcraftApp| app.session.active().unwrap().history.undo.len();
+        // The undo steps and the journal entries (the dialog's OK runs its command, which the journal records).
+        let steps = |app: &VectorcraftApp| (app.session.active().unwrap().history.undo.len(), app.session.journal.len());
         app.select_tool("selection");
         frame(&mut app, vec![enter()]);
         assert_eq!(kind(&app), None, "nothing is selected");
@@ -641,13 +730,42 @@ mod tests {
             frame(&mut app, vec![]);
             assert_eq!(kind(&app).as_deref(), Some(dialog), "{tool}: and it stays open");
             assert_eq!(steps(&app), before, "{tool}: the Enter that opened it didn't confirm it");
-            // The next Enter is its OK.
+            // The next Enter is its OK. With its default values only Reflect changes the art, so only
+            // Reflect records an undo step.
             frame(&mut app, vec![enter()]);
-            assert_eq!((kind(&app), steps(&app)), (None, before + 1), "{tool}: Enter confirms");
+            let after = (before.0 + usize::from(dialog == "reflect"), before.1 + 1);
+            assert_eq!((kind(&app), steps(&app)), (None, after), "{tool}: Enter confirms");
         }
         app.select_tool("rectangle");
         frame(&mut app, vec![enter()]);
         assert_eq!(kind(&app), None, "another tool has its own Enter");
+    }
+
+    /// #1661: typed `[` and `]` reach the tool that takes them: the Blob Brush's and the Eraser's
+    /// size (Option or AltGr brackets too), the stroke weight left as it is; other tools leave them
+    /// alone.
+    #[test]
+    fn brackets_size_the_blob_brush_and_the_eraser() {
+        let mut app = VectorcraftApp::new(vectorcraft_engine::Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+        app.session.execute("stroke.set", &json!({"weight": 3})).unwrap();
+        let size = |app: &mut VectorcraftApp| app.session.tool_options()["size"].as_f64().unwrap();
+        let text = |t: &str| egui::Event::Text(t.into());
+        for tool in ["blobBrush", "eraser"] {
+            app.select_tool(tool);
+            let before = size(&mut app);
+            frame(&mut app, vec![text("]")]);
+            frame(&mut app, vec![text("]")]);
+            assert_eq!(size(&mut app), before + 2.0, "{tool}");
+            // Option-8 types `[` on a Turkish Mac keyboard.
+            let option_8 = egui::Event::Key { key: Key::Num8, physical_key: None, pressed: true, repeat: false, modifiers: Modifiers::ALT };
+            frame(&mut app, vec![option_8, text("[")]);
+            assert_eq!(size(&mut app), before + 1.0, "{tool}: a bracket typed with Option");
+        }
+        assert_eq!(app.session.paint.stroke_width, 3.0, "the stroke weight stays");
+        app.select_tool("rectangle");
+        frame(&mut app, vec![text("[")]);
+        assert_eq!(app.session.paint.stroke_width, 3.0);
     }
 
     #[test]

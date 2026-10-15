@@ -197,6 +197,68 @@ fn curvature_click_first_point_closes() {
     assert_eq!(p.anchor_count(), 3);
 }
 
+/// The Curvature tool edits a path another tool drew (#798), one undo step per edit, keeping its
+/// shape except where edited.
+#[test]
+fn curvature_edits_any_selected_path() {
+    let mut s = session();
+    let v = view();
+    let anchors = json!([
+        {"x": 100, "y": 300},
+        {"x": 200, "y": 200, "in": [160, 210], "out": [260, 185]},
+        {"x": 350, "y": 280, "in": [320, 230], "out": [380, 330]},
+        {"x": 450, "y": 350, "in": [420, 360], "out": [480, 300]},
+        {"x": 550, "y": 260, "in": [520, 290]}
+    ]);
+    let id = NodeId(s.execute("path.create", &json!({ "anchors": anchors })).unwrap()["id"].as_u64().unwrap());
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    s.select_tool("curvature", v).unwrap();
+    let before = path(&s, id).subpaths[0].clone();
+    // Drag a point: only its two segments change.
+    assert_eq!(gesture(&mut s, &[(350.0, 280.0), (360.0, 320.0), (370.0, 340.0)], Mods::default()), 1);
+    let sp = path(&s, id).subpaths[0].clone();
+    assert_eq!(sp.anchors[2].p, Point::new(370.0, 340.0));
+    assert_eq!((sp.segment(0), sp.segment(3)), (before.segment(0), before.segment(3)));
+    assert_eq!(s.doc().unwrap().selection.anchors.get(&id).map(|a| a.len()), Some(1), "the point is current");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(path(&s, id).subpaths[0], before);
+    // Alt-click toggles it, Delete removes the current point: one step each.
+    let (alt, steps) = (Mods { alt: true, ..Default::default() }, undo_steps(&s));
+    assert_eq!(gesture(&mut s, &[(200.0, 200.0)], alt), 1);
+    assert!(!path(&s, id).subpaths[0].anchors[1].has_out());
+    s.tool_key(ToolKey::Delete, Mods::default(), v).unwrap();
+    assert_eq!(path(&s, id).anchor_count(), 4);
+    assert_eq!(undo_steps(&s), steps + 2);
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(path(&s, id).subpaths[0], before);
+    // A press on a segment adds a point, the drag moving it: one step.
+    s.execute("select.set", &json!({"ids": [id.0]})).unwrap();
+    let on = kurbo::ParamCurve::eval(&before.segment(3), 0.5);
+    assert_eq!(gesture(&mut s, &[(on.x, on.y), (on.x, on.y + 20.0), (on.x, on.y + 30.0)], Mods::default()), 1);
+    let sp = path(&s, id).subpaths[0].clone();
+    assert_eq!(sp.anchors.len(), 6);
+    assert_eq!(sp.anchors[4].p, Point::new(on.x, on.y + 30.0));
+    assert_eq!((sp.segment(0), sp.segment(1), sp.segment(2)), (before.segment(0), before.segment(1), before.segment(2)));
+    s.execute("edit.undo", &json!({})).unwrap();
+    // A click on an end, then two more: the path goes on, its old segments unchanged.
+    let steps = undo_steps(&s);
+    for (x, y) in [(550.0, 260.0), (650.0, 300.0), (720.0, 220.0)] {
+        gesture(&mut s, &[(x, y)], Mods::default());
+    }
+    assert_eq!(undo_steps(&s), steps + 2, "selecting the end is no step");
+    let sp = path(&s, id).subpaths[0].clone();
+    assert_eq!(sp.anchors.len(), 7);
+    assert!((0..4).all(|i| sp.segment(i) == before.segment(i)));
+    assert_eq!(sp.anchors[6].p, Point::new(720.0, 220.0));
+    // The other end closes it; Esc and a click away start a new path.
+    gesture(&mut s, &[(100.0, 300.0)], Mods::default());
+    assert!(path(&s, id).is_closed());
+    s.tool_key(ToolKey::Escape, Mods::default(), v).unwrap();
+    gesture(&mut s, &[(700.0, 550.0)], Mods::default());
+    assert_eq!(paths(&s).len(), 2);
+}
+
 #[test]
 fn add_and_delete_anchor_tools() {
     let mut s = session();
@@ -350,6 +412,29 @@ fn smooth_tool_reduces_jagged_path() {
     assert_eq!(p.subpaths[0].anchors[0].p, Point::new(100.0, 200.0));
 }
 
+/// #1512: a short drag over a small bump smooths the stretch of path under it. The long straight
+/// sides next to the bump stay straight lines from their far ends, which keep their place.
+#[test]
+fn a_short_smooth_drag_leaves_the_rest_of_long_segments_alone() {
+    let mut s = session();
+    let anchors: Vec<_> =
+        [(50.0, 200.0), (190.0, 200.0), (200.0, 192.0), (210.0, 200.0), (350.0, 200.0)].map(|(x, y)| json!({"x": x, "y": y})).to_vec();
+    let r = s.execute("path.create", &json!({"anchors": anchors})).unwrap();
+    let id = NodeId(r["id"].as_u64().unwrap());
+    let before = path(&s, id);
+    drag(&mut s, "smooth", &[(195.0, 194.0), (205.0, 194.0)], Mods::default());
+    let p = path(&s, id);
+    assert_ne!(p, before, "the bump is smoothed");
+    let a = &p.subpaths[0].anchors;
+    let (first, second, last) = (a[0], a[1], a[a.len() - 1]);
+    assert!(first.p == Point::new(50.0, 200.0) && !first.has_out() && !second.has_in(), "the left side is a line still: {first:?} {second:?}");
+    assert!(last.p == Point::new(350.0, 200.0) && !last.has_in() && !a[a.len() - 2].has_out(), "and the right one: {last:?}");
+    // Every other anchor is within the tool's reach of the drag (12 px either way).
+    for x in &a[1..a.len() - 1] {
+        assert!((182.0..=218.0).contains(&x.p.x) && (190.0..=201.0).contains(&x.p.y), "{x:?}");
+    }
+}
+
 #[test]
 fn join_tool_joins_two_lines() {
     let mut s = session();
@@ -378,6 +463,132 @@ fn line_family_tools_draw_and_click_asks_dialog() {
     assert!((b.width() - 100.0).abs() < 1e-6 && (b.height() - 50.0).abs() < 1e-6, "{b:?}");
     let ui = click(&mut s, "polarGrid", 10.0, 10.0);
     assert_eq!(ui, vec![UiRequest::Dialog("polarGrid".into(), json!({"x": 10.0, "y": 10.0}))]);
+}
+
+/// The children of the grid a `shape.rectangularGrid` / `shape.polarGrid` call made, bottom first.
+fn grid(s: &mut Session, cmd: &str, p: serde_json::Value) -> Vec<std::sync::Arc<vectorcraft_doc::Node>> {
+    let id = NodeId(s.execute(cmd, &p).unwrap()["id"].as_u64().unwrap());
+    s.doc().unwrap().doc.node(id).unwrap().children().unwrap().to_vec()
+}
+
+/// `base` with the keys of `extra` added.
+fn with(base: &serde_json::Value, extra: serde_json::Value) -> serde_json::Value {
+    let mut p = base.clone();
+    p.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+    p
+}
+
+fn is_filled(n: &vectorcraft_doc::Node) -> bool {
+    n.appearance.fill().is_some_and(|f| f.paint != vectorcraft_color::Paint::None)
+}
+
+/// #1377: the Rectangular Grid options. By default the frame is one rectangle under evenly spaced
+/// dividers and nothing is filled; `frame: false` draws its four sides instead, `fill` paints the
+/// current fill and the skews crowd the dividers to the top / right (positive) or bottom / left.
+#[test]
+fn rectangular_grid_options_frame_fill_and_skew() {
+    const CMD: &str = "shape.rectangularGrid";
+    let mut s = session();
+    s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    let base = json!({"x": 0, "y": 0, "width": 100, "height": 100, "rows": 3, "columns": 3});
+    // The y of the three horizontal dividers and the x of the three vertical ones (the last six children).
+    let dividers = |g: &[std::sync::Arc<vectorcraft_doc::Node>]| {
+        let starts: Vec<Point> = g[g.len() - 6..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[0].p).collect();
+        starts[..3].iter().map(|p| p.y).chain(starts[3..].iter().map(|p| p.x)).collect::<Vec<_>>()
+    };
+    let plain = grid(&mut s, CMD, base.clone());
+    assert_eq!(plain.len(), 7);
+    assert!(plain[0].path_data().unwrap().is_closed(), "the frame lies under the dividers");
+    assert!(plain.iter().all(|n| !is_filled(n) && n.appearance.stroke().is_some()));
+    assert_eq!(dividers(&plain), [25.0, 50.0, 75.0, 25.0, 50.0, 75.0]);
+    // No frame: its four sides are lines of their own.
+    let sides = grid(&mut s, CMD, with(&base, json!({"frame": false})));
+    assert_eq!(sides.len(), 10);
+    assert!(sides.iter().all(|n| !n.path_data().unwrap().is_closed() && n.path_data().unwrap().anchor_count() == 2));
+    assert_eq!(dividers(&sides), dividers(&plain));
+    let filled = grid(&mut s, CMD, with(&base, json!({"fill": true})));
+    assert!(filled.iter().all(|n| is_filled(n)), "Fill Grid paints the current fill");
+    assert_eq!(filled[0].appearance.fill().unwrap().paint, s.paint.fill);
+    // Skew: toward the top and the right when positive, the bottom and the left when negative;
+    // past ±500 % is ±500 %.
+    let top_right = dividers(&grid(&mut s, CMD, with(&base, json!({"rowSkew": 100, "columnSkew": 100}))));
+    for (got, want) in top_right.iter().zip([6.25, 25.0, 56.25, 43.75, 75.0, 93.75]) {
+        assert!((got - want).abs() < 1e-9, "{top_right:?}");
+    }
+    let bottom_left = dividers(&grid(&mut s, CMD, with(&base, json!({"rowSkew": -100, "columnSkew": -100}))));
+    assert!(bottom_left[1] > 50.0 && bottom_left[4] < 50.0, "{bottom_left:?}");
+    let most = dividers(&grid(&mut s, CMD, with(&base, json!({"rowSkew": 500, "columnSkew": -500}))));
+    let beyond = dividers(&grid(&mut s, CMD, with(&base, json!({"rowSkew": 1e300, "columnSkew": -1e300}))));
+    assert_eq!(most, beyond);
+    assert!(most.iter().all(|v| *v > 0.0 && *v < 100.0), "{most:?}");
+}
+
+/// #1377: the Polar Grid options. The ellipses lie under the radial dividers, largest first;
+/// `compound` pairs them into compound-path rings, `fill` paints the current fill and the skews
+/// crowd the ellipses outward and the radial dividers clockwise of the top one (positive).
+#[test]
+fn polar_grid_options_compound_fill_and_skew() {
+    const CMD: &str = "shape.polarGrid";
+    let mut s = session();
+    s.execute("paint.setFill", &json!({"color": "#00ff00"})).unwrap();
+    let base = json!({"x": 0, "y": 0, "width": 100, "height": 100, "concentric": 3, "radial": 4});
+    let width = |n: &vectorcraft_doc::Node| n.geometric_bounds().unwrap().width();
+    let tips =
+        |g: &[std::sync::Arc<vectorcraft_doc::Node>]| g[4..].iter().map(|n| n.path_data().unwrap().subpaths[0].anchors[1].p).collect::<Vec<_>>();
+    let plain = grid(&mut s, CMD, base.clone());
+    assert_eq!(plain.len(), 8);
+    assert_eq!(plain[..4].iter().map(|n| width(n).round()).collect::<Vec<_>>(), [100.0, 75.0, 50.0, 25.0], "largest at the bottom");
+    assert!(plain[..4].iter().all(|n| n.path_data().unwrap().is_closed()) && plain[4..].iter().all(|n| !n.path_data().unwrap().is_closed()));
+    assert!(plain.iter().all(|n| !is_filled(n)));
+    assert!(grid(&mut s, CMD, with(&base, json!({"fill": true}))).iter().all(|n| is_filled(n)));
+    // Compound: 4 ellipses make 2 rings, each a compound path of an outside and a hole running
+    // against it that carries the grid's paint itself; with 5, the innermost ellipse stays a path.
+    let rings = grid(&mut s, CMD, with(&base, json!({"compound": true, "fill": true})));
+    assert_eq!(rings.len(), 6);
+    for (ring, sizes) in rings[..2].iter().zip([[100.0, 75.0], [50.0, 25.0]]) {
+        let NodeKind::Compound { children, rule } = &ring.kind else { panic!("{:?}", ring.kind) };
+        assert_eq!(*rule, FillRule::NonZero);
+        assert_eq!(children.iter().map(|n| width(n).round()).collect::<Vec<_>>(), sizes);
+        let areas: Vec<f64> = children.iter().map(|n| n.path_data().unwrap().subpaths[0].signed_area()).collect();
+        assert!(areas[0] * areas[1] < 0.0, "the hole runs against the outside: {areas:?}");
+        assert!(is_filled(ring) && ring.appearance.stroke().is_some());
+    }
+    let five = grid(&mut s, CMD, with(&base, json!({"compound": true, "concentric": 4, "radial": 0})));
+    assert_eq!(five.iter().map(|n| matches!(n.kind, NodeKind::Compound { .. })).collect::<Vec<_>>(), [true, true, false]);
+    // Skew.
+    let out = grid(&mut s, CMD, with(&base, json!({"concentricSkew": 100, "radialSkew": 500})));
+    for (n, want) in out[..4].iter().zip([100.0, 93.75, 75.0, 43.75]) {
+        assert!((width(n) - want).abs() < 1e-6, "{}", width(n));
+    }
+    assert!(tips(&out)[0].distance(Point::new(50.0, 0.0)) < 1e-9, "the top divider stays");
+    assert!(tips(&out)[1..].iter().all(|t| t.x > 50.0), "clockwise of the top: {:?}", tips(&out));
+    let inward = grid(&mut s, CMD, with(&base, json!({"concentricSkew": -100, "radialSkew": -500})));
+    assert!((width(&inward[1]) - 56.25).abs() < 1e-6);
+    assert!(tips(&inward)[1..].iter().all(|t| t.x < 50.0), "counterclockwise of the top: {:?}", tips(&inward));
+}
+
+/// The grid options are checked: a skew is a number and a switch true or false, or the command
+/// fails without an undo step.
+#[test]
+fn grid_commands_reject_options_of_the_wrong_type() {
+    let mut s = session();
+    let size = json!({"x": 0, "y": 0, "width": 10, "height": 10});
+    for (cmd, key, value) in [
+        ("shape.rectangularGrid", "rowSkew", json!("50")),
+        ("shape.rectangularGrid", "columnSkew", json!(true)),
+        ("shape.rectangularGrid", "frame", json!(1)),
+        ("shape.rectangularGrid", "fill", json!("yes")),
+        ("shape.polarGrid", "concentricSkew", json!([1])),
+        ("shape.polarGrid", "radialSkew", json!({})),
+        ("shape.polarGrid", "compound", json!(0)),
+        ("shape.polarGrid", "fill", json!("true")),
+    ] {
+        let before = s.doc().unwrap().history.undo.len();
+        let p = with(&size, json!({key: value}));
+        assert!(s.execute(cmd, &p).is_err(), "{cmd} {p}");
+        assert_eq!(s.doc().unwrap().history.undo.len(), before, "{cmd} left an undo step");
+        assert!(s.execute(cmd, &with(&size, json!({key: null}))).is_ok(), "{cmd}: null is the default");
+    }
 }
 
 #[test]
@@ -627,6 +838,131 @@ fn cut_at_anchors_splits_paths_and_leaves_one_end_selected() {
 }
 
 #[test]
+fn direct_segment_delete_keeps_the_other_rectangle_edges_and_one_undo() {
+    for initially_selected in [false, true] {
+        let mut s = session();
+        let id = rect(&mut s, 100.0, 100.0, 200.0, 150.0);
+        if !initially_selected {
+            s.execute("select.none", &json!({})).unwrap();
+        }
+        let before = s.doc().unwrap().doc.clone();
+        let original = path(&s, id).subpaths[0].clone();
+        let undo = undo_steps(&s);
+        drag(&mut s, "directSelection", &[(200.0, 100.0)], Mods::default());
+        assert_eq!(s.doc().unwrap().doc, before, "a click never edits the document");
+        assert_eq!(undo_steps(&s), undo);
+        assert_eq!(s.doc().unwrap().selection.segments[&id], [(0, 0)].into());
+        s.execute("edit.clear", &json!({})).unwrap();
+        let after = s.doc().unwrap().doc.clone();
+        let remainder = path(&s, id).subpaths[0].clone();
+        assert!(!remainder.closed);
+        assert_eq!(remainder.anchors.len(), 4, "the endpoints and neighboring edges survive");
+        for i in 0..3 {
+            assert_eq!(remainder.segment(i), original.segment(i + 1));
+        }
+        assert_eq!(undo_steps(&s), undo + 1);
+        assert_eq!(s.doc().unwrap().selection.objects, vec![id]);
+        assert!(s.doc().unwrap().selection.anchors.is_empty() && s.doc().unwrap().selection.segments.is_empty());
+        s.execute("edit.undo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().doc, before);
+        assert_eq!(s.doc().unwrap().selection.segments[&id], [(0, 0)].into());
+        s.execute("edit.redo", &json!({})).unwrap();
+        assert_eq!(s.doc().unwrap().doc, after);
+        s.execute("edit.clear", &json!({})).unwrap();
+        assert!(s.doc().unwrap().doc.node(id).is_none(), "a second Delete removes the rest");
+    }
+}
+
+/// A segment pick's endpoints are hollow: Shift-clicking or Shift-marqueeing one selects that
+/// anchor, rather than toggling it off and leaving the other endpoint selected.
+#[test]
+fn selecting_an_anchor_after_a_segment_pick_starts_from_no_anchors() {
+    let mut s = session();
+    let id = rect(&mut s, 100.0, 100.0, 200.0, 150.0);
+    let segment = json!({"id": id.0, "segments": [[0, 0]]});
+    s.execute("select.segments", &segment).unwrap();
+    s.execute("select.anchors", &json!({"id": id.0, "anchors": [[0, 0]], "mode": "toggle"})).unwrap();
+    let sel = &s.doc().unwrap().selection;
+    assert_eq!(sel.partial(id), Some(&[(0, 0)].into()));
+    assert!(sel.segments.is_empty());
+    s.execute("select.segments", &segment).unwrap();
+    s.execute("select.anchorsMany", &json!({"items": [{"id": id.0, "anchors": [[0, 1]]}], "mode": "add"})).unwrap();
+    let sel = &s.doc().unwrap().selection;
+    assert_eq!(sel.partial(id), Some(&[(0, 1)].into()));
+    assert!(sel.segments.is_empty());
+}
+
+#[test]
+fn segment_delete_preserves_curves_appearance_and_unrelated_contours() {
+    let data = "M100 100C110 70 150 130 170 100C180 75 230 125 250 100C270 140 280 80 310 100C320 120 140 140 100 100Z M400 100L500 100L500 200Z";
+    for closed in [false, true] {
+        for cuts in [vec![0], vec![1], vec![3], vec![0, 2], vec![0, 3], vec![0, 1, 2, 3]] {
+            let mut s = session();
+            let id = NodeId(s.execute("path.create", &json!({"d": data})).unwrap()["id"].as_u64().unwrap());
+            s.edit("Fixture", |d, _| {
+                if let NodeKind::Path { path, .. } = &mut d.node_mut(id).unwrap().kind {
+                    path.subpaths[0].closed = closed;
+                }
+                Ok(())
+            })
+            .unwrap();
+            s.execute("paint.setStroke", &json!({"color":"#123456"})).unwrap();
+            let original = path(&s, id);
+            let cuts: Vec<_> = cuts.into_iter().filter(|&i| i < original.subpaths[0].segment_count()).collect();
+            if cuts.is_empty() {
+                continue;
+            }
+            let refs: Vec<_> = cuts.iter().map(|i| json!([0, i])).collect();
+            s.execute("select.segments", &json!({"id":id.0,"segments":refs})).unwrap();
+            let before = s.doc().unwrap().doc.clone();
+            s.execute("edit.clear", &json!({})).unwrap();
+            let result = path(&s, id);
+            assert_eq!(result.subpaths.last().unwrap(), original.subpaths.last().unwrap(), "the other contour stays exact");
+            let expected: Vec<_> =
+                (0..original.subpaths[0].segment_count()).filter(|i| !cuts.contains(i)).map(|i| original.subpaths[0].segment(i)).collect();
+            let actual: Vec<_> =
+                result.subpaths.iter().take(result.subpaths.len() - 1).flat_map(|sp| (0..sp.segment_count()).map(|i| sp.segment(i))).collect();
+            assert_eq!(actual.len(), expected.len());
+            assert!(expected.iter().all(|curve| actual.contains(curve)), "{closed} {cuts:?}");
+            for sp in result.subpaths.iter().take(result.subpaths.len() - 1) {
+                assert!(
+                    !sp.anchors.first().unwrap().has_in() && !sp.anchors.last().unwrap().has_out(),
+                    "deleted-edge handles do not remain at open endpoints"
+                );
+            }
+            let mut restored = s.doc().unwrap().doc.clone();
+            std::sync::Arc::make_mut(&mut restored).node_mut(id).unwrap().kind = before.node(id).unwrap().kind.clone();
+            assert_eq!(restored, before, "only the edited path kind changes");
+            s.execute("edit.undo", &json!({})).unwrap();
+            assert_eq!(s.doc().unwrap().doc, before);
+        }
+    }
+}
+
+#[test]
+fn segment_picks_and_deliberate_anchor_picks_delete_different_components() {
+    let mut s = session();
+    let id = rect(&mut s, 100.0, 100.0, 200.0, 150.0);
+    s.execute("select.segments", &json!({"id":id.0,"segments":[[0,0]]})).unwrap();
+    let before = s.doc().unwrap().doc.clone();
+    let selection = s.doc().unwrap().selection.clone();
+    for refs in [json!([[0, 99]]), json!([[99, 0]]), json!([[-1, 0]]), json!([[0, 0.5]])] {
+        assert!(s.execute("select.segments", &json!({"id":id.0,"segments":refs})).is_err());
+        assert_eq!(s.doc().unwrap().selection, selection);
+        assert_eq!(s.doc().unwrap().doc, before);
+    }
+    s.execute("select.anchors", &json!({"id":id.0,"anchors":[[0,0],[0,1]]})).unwrap();
+    assert!(s.doc().unwrap().selection.segments.is_empty());
+    s.execute("edit.clear", &json!({})).unwrap();
+    assert_eq!(path(&s, id).anchor_count(), 2, "deliberate anchor Delete keeps its existing behavior");
+    s.execute("edit.undo", &json!({})).unwrap();
+    s.execute("select.segments", &json!({"id":id.0,"segments":[[0,0]]})).unwrap();
+    drag(&mut s, "directSelection", &[(100.0, 100.0)], Mods::default());
+    assert!(s.doc().unwrap().selection.segments.is_empty());
+    assert_eq!(s.doc().unwrap().selection.anchors[&id], [(0, 0)].into(), "clicking an endpoint picks the anchor itself");
+}
+
+#[test]
 fn pen_with_alt_moves_one_handle_and_converts_anchors() {
     // Discord feedback: Alt held with the Pen moves a direction handle on its own (and works as
     // the Anchor Point tool on a selected path's anchors), while a path is being drawn too.
@@ -808,6 +1144,10 @@ fn the_pen_continues_any_open_path_and_joins_another() {
     assert_eq!(s.doc().unwrap().selection.objects, vec![a]);
     assert_eq!(s.cursor(Point::new(300.0, 200.0), none, v), Cursor::PenJoin);
     assert_eq!(s.cursor(Point::new(350.0, 200.0), none, v), Cursor::Pen, "the middle of the other path");
+    // #1009: Use Precise Cursors makes the join pointer a crosshair too.
+    s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": true})).unwrap();
+    assert_eq!(s.cursor(Point::new(300.0, 200.0), none, v), Cursor::Crosshair);
+    s.execute("prefs.set", &json!({"key": "usePreciseCursors", "value": false})).unwrap();
     assert_eq!(gesture(&mut s, &[(300.0, 200.0)], none), 1);
     let pts = |s: &Session, id| path(s, id).subpaths.iter().flat_map(|sp| sp.anchors.iter().map(|x| (x.p.x, x.p.y))).collect::<Vec<_>>();
     assert_eq!(pts(&s, a), [(100.0, 100.0), (200.0, 100.0), (300.0, 200.0), (400.0, 200.0)]);
@@ -822,6 +1162,31 @@ fn the_pen_continues_any_open_path_and_joins_another() {
     gesture(&mut s, &[(100.0, 100.0)], none);
     gesture(&mut s, &[(50.0, 50.0)], none);
     assert_eq!(pts(&s, a), [(400.0, 200.0), (300.0, 200.0), (200.0, 100.0), (100.0, 100.0), (50.0, 50.0)]);
+}
+
+/// #1533: two corners of a rectangle brought together by Average become one anchor on Join, in
+/// one undo step; anchors that aren't on one another leave Join as it was.
+#[test]
+fn join_merges_the_selected_anchors_average_brought_together() {
+    let mut s = session();
+    let r = rect(&mut s, 100.0, 100.0, 100.0, 80.0);
+    let pts = |s: &Session| path(s, r).subpaths[0].anchors.iter().map(|x| (x.p.x, x.p.y)).collect::<Vec<_>>();
+    s.execute("select.anchors", &json!({"id": r.0, "anchors": [[0, 0], [0, 1]], "mode": "set"})).unwrap();
+    assert!(s.execute("path.join", &json!({})).is_err(), "apart: nothing to merge, and the path is closed");
+    s.execute("path.average", &json!({"axis": "both"})).unwrap();
+    s.execute("path.join", &json!({})).unwrap();
+    assert_eq!(pts(&s), [(150.0, 100.0), (200.0, 180.0), (100.0, 180.0)]);
+    assert!(path(&s, r).subpaths[0].closed);
+    let sel = &s.doc().unwrap().selection;
+    assert!(sel.objects == [r] && sel.anchors.is_empty());
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(pts(&s).len(), 4);
+    // The closing pair: the first and last anchors of a closed path.
+    s.execute("select.anchors", &json!({"id": r.0, "anchors": [[0, 0], [0, 3]], "mode": "set"})).unwrap();
+    s.execute("path.average", &json!({"axis": "both"})).unwrap();
+    let before = pts(&s);
+    s.execute("path.join", &json!({})).unwrap();
+    assert_eq!(pts(&s), before[..3]);
 }
 
 /// `path.join {ids, ends}` joins the ends asked for, not the nearest pair; bad requests are errors.
@@ -843,4 +1208,48 @@ fn join_takes_the_paths_and_the_ends_to_join() {
     ] {
         assert!(s.execute("path.join", &bad).is_err(), "{bad}");
     }
+}
+
+#[test]
+fn pen_with_alt_converts_the_anchors_of_a_path_in_a_selected_group() {
+    // #1273: a selected group (or compound path) shows its paths' anchors, so Alt with the Pen
+    // converts them as it does a selected path's, rather than starting a new path there.
+    let alt = Mods { alt: true, ..Mods::default() };
+    let v = view();
+    for wrap in ["object.group", "object.compoundPath.make"] {
+        let mut s = session();
+        let anchors = json!([{"x": 100, "y": 200}, {"x": 200, "y": 100, "in": [150, 100], "out": [250, 100]}, {"x": 300, "y": 200}]);
+        let id = NodeId(s.execute("path.create", &json!({"anchors": anchors})).unwrap()["id"].as_u64().unwrap());
+        s.execute(wrap, &json!({})).unwrap();
+        assert!(!s.doc().unwrap().selection.objects.contains(&id), "{wrap}: the wrapper is selected, not the path");
+        s.select_tool("pen", v).unwrap();
+        // Alt-click the smooth anchor: a corner, in one step, and no new path.
+        assert_eq!(gesture(&mut s, &[(200.0, 100.0)], alt), 1, "{wrap}");
+        let a = path(&s, id).subpaths[0].anchors[1];
+        assert!(!a.has_in() && !a.has_out(), "{wrap}: a corner: {a:?}");
+        assert_eq!(paths(&s).len(), 1, "{wrap}: no new path");
+        // Alt-drag it: smooth again.
+        assert_eq!(gesture(&mut s, &[(200.0, 100.0), (220.0, 100.0), (240.0, 110.0)], alt), 1, "{wrap}");
+        let a = path(&s, id).subpaths[0].anchors[1];
+        assert_eq!((a.h_in, a.h_out), (Point::new(160.0, 90.0), Point::new(240.0, 110.0)), "{wrap}");
+        assert_eq!(paths(&s).len(), 1, "{wrap}: no new path");
+    }
+}
+
+/// #1679: a filled pencil path keeps a stroke of None; an unfilled one with no stroke gets black,
+/// or it would show nothing.
+#[test]
+fn a_filled_pencil_path_keeps_no_stroke() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+    s.execute("select.none", &json!({})).unwrap();
+    s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    s.execute("paint.setStroke", &json!({"none": true})).unwrap();
+    let pts = json!([[10, 10], [60, 20], [90, 80], [20, 90]]);
+    let id = NodeId(s.execute("path.freehand", &json!({"points": pts, "fill": true})).unwrap()["id"].as_u64().unwrap());
+    let n = s.doc().unwrap().doc.node(id).unwrap().clone();
+    assert!(n.appearance.stroke_paint().is_none(), "{:?}", n.appearance);
+    assert!(!n.appearance.fill_paint().is_none());
+    let id = NodeId(s.execute("path.freehand", &json!({"points": pts})).unwrap()["id"].as_u64().unwrap());
+    assert!(!s.doc().unwrap().doc.node(id).unwrap().appearance.stroke_paint().is_none());
 }

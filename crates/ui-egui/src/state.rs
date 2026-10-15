@@ -138,9 +138,14 @@ pub const ICON_PANELS: &[(&str, &str, &str)] = &[
     (crate::panels::links::ID, "Links", "link"),
     (crate::panels::asset_export::ID, "Asset Export", "share-2"),
     (crate::panels::css_properties::ID, "CSS Properties", "globe"),
+    (crate::panels::variables::ID, "Variables", "chart-column"),
 ];
 
 /// Groups of icon panels separated by dividers in the collapsed column.
+///
+/// This, not [`ICON_PANELS`], is what the collapsed column draws: a panel listed there but in
+/// no group can be opened from the Window menu and `window.panel`, but never appears as an
+/// icon. A panel that belongs in the column needs a row here as well as its entry above.
 pub const ICON_PANEL_GROUPS: &[&[&str]] = &[
     &["color", "colorGuide"],
     &["swatches", "brushes", "symbols", "patternOptions"],
@@ -150,6 +155,7 @@ pub const ICON_PANEL_GROUPS: &[&[&str]] = &[
     &["transform", "align", "pathfinder"],
     &["character", "paragraph", "glyphs"],
     &["history", "actions", "info", "navigator"],
+    &["variables"],
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -268,9 +274,30 @@ pub struct UiState {
     /// Tool flyouts torn off the toolbar into floating panels.
     #[serde(default)]
     pub floating_flyouts: Vec<FloatingFlyout>,
+    /// The Basic and Advanced toolbars as Edit Toolbar left them (none: as they ship).
+    #[serde(default)]
+    pub toolbar_edits: ToolbarEdits,
+    /// The controls under the toolbar's tools that the All Tools drawer's Show section shows
+    /// (`toolbar.show`).
+    #[serde(default)]
+    pub toolbar_show: ToolbarShow,
+    /// Edit Toolbar's All Tools drawer is open beside the toolbar (`window.editToolbar`).
+    #[serde(skip)]
+    pub tools_drawer: bool,
     /// Panels dragged out of the dock: each group floats as its own stack of tabs.
     #[serde(default)]
     pub floating_panels: Vec<FloatingPanels>,
+    /// Shared panel membership and placement; older preferences use the legacy dock.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docking: Option<craft_ui::docking::Layout<String>>,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub docking_hidden: std::collections::BTreeMap<String, craft_ui::docking::Location<String>>,
+    /// Panels whose saved return destination is the iconic rail.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeSet::is_empty")]
+    pub docking_icons: std::collections::BTreeSet<String>,
+    /// Invalidates in-flight gestures when a workspace is replaced.
+    #[serde(skip)]
+    pub docking_generation: u64,
     /// The Tools panel floats with its top-left corner here (dragged out by its title bar); `None`:
     /// docked at the window's left edge.
     #[serde(default)]
@@ -279,6 +306,14 @@ pub struct UiState {
     pub dock: bool,
     pub view: ViewFlags,
     pub dialog: Option<Dialog>,
+    /// Messages to show in a dialog once the open one is closed (`dialogs::confirm::tell`), in
+    /// the order they came.
+    #[serde(skip)]
+    pub told: Vec<Dialog>,
+    /// A control request is being answered: its caller gets what fails as its reply, so no
+    /// dialog says it too (`io::report_write_error`).
+    #[serde(skip)]
+    pub answering_control: bool,
     /// Toolbar group whose flyout is open.
     pub flyout: Option<usize>,
     /// Last tool shown for each toolbar group (flyout selection sticks).
@@ -337,6 +372,14 @@ pub struct UiState {
     /// swatches) or "" (none) (`ui.colorGuideLimit`).
     #[serde(default)]
     pub color_guide_limit: String,
+    /// Align panel: the Align To choice, Selection or Artboard, which Object → Align and the align
+    /// buttons follow ([`crate::panels::align::with_align_to`]).
+    #[serde(default, deserialize_with = "crate::panels::align::deserialize_align_to")]
+    pub align_to: crate::panels::align::AlignTo,
+    /// Color panel: the mode picked last from its menu (`None`: never picked), in which the panel
+    /// shows the defaults for new art ([`crate::panels::color::deserialize_mode`]).
+    #[serde(default, deserialize_with = "crate::panels::color::deserialize_mode")]
+    pub color_mode: Option<crate::panels::color::Mode>,
     /// The SVG Options chosen last (`svg` object of the export/save commands; null: never used).
     #[serde(default)]
     pub svg_options: Value,
@@ -347,12 +390,32 @@ pub struct UiState {
     /// dialog is open.
     #[serde(skip)]
     pub dialog_file: Option<std::sync::Arc<crate::dialogs::import_pdf::DialogFile>>,
+    /// The documents (uids) whose Missing Fonts dialog waits until no dialog is open, the next one to
+    /// show first ([`crate::dialogs::settle`]).
+    #[serde(skip)]
+    pub pending_fonts: Vec<u64>,
+    /// The document (uid) whose Missing Fonts dialog is on show. When another dialog takes its
+    /// place, [`crate::dialogs::settle`] puts the document back at the front of `pending_fonts`.
+    #[serde(skip)]
+    pub fonts_dialog: Option<u64>,
+    /// The search the Missing Fonts dialog started (`text.findFontFiles`'s `id`), stopped once the
+    /// dialog is gone.
+    #[serde(skip)]
+    pub dialog_search: Option<u64>,
+    /// The search the Find Linked Files dialog started (`links.findFiles`'s `id`), stopped once the
+    /// dialog is gone.
+    #[serde(skip)]
+    pub links_search: Option<u64>,
     /// The DXF Options chosen last (`document.exportDxf` options; null: never used).
     #[serde(default)]
     pub dxf_options: Value,
     /// The EPS Options chosen last (`document.exportEps` options; null: never used).
     #[serde(default)]
     pub eps_options: Value,
+    /// The Offset Path fields confirmed last (offset, joins, miterLimit; null: never used): its
+    /// dialog opens on them (#1152).
+    #[serde(default)]
+    pub offset_path: Value,
     /// The DXF Import Options chosen last (fit, scaleLineweights, center, mergeLayers; null:
     /// never used).
     #[serde(default)]
@@ -397,6 +460,76 @@ pub struct FloatingFlyout {
     pub pos: [f32; 2],
 }
 
+/// A category of an edited toolbar: its name (one of the Basic toolbar's; none in the Advanced
+/// toolbar) and its slots, each a tool group (the first tool is the slot's default).
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ToolbarCategory {
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub slots: Vec<Vec<String>>,
+}
+
+/// The controls under the toolbar's tools, each shown or hidden from the All Tools drawer's Show
+/// section: Fill and Stroke (the proxy), Coloring (Color, Gradient, None), Draw Mode and Screen
+/// Mode. All shown as it ships.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ToolbarShow {
+    #[serde(default = "yes")]
+    pub fill_stroke: bool,
+    #[serde(default = "yes")]
+    pub coloring: bool,
+    #[serde(default = "yes")]
+    pub draw_mode: bool,
+    #[serde(default = "yes")]
+    pub screen_mode: bool,
+}
+
+impl Default for ToolbarShow {
+    fn default() -> Self {
+        Self { fill_stroke: true, coloring: true, draw_mode: true, screen_mode: true }
+    }
+}
+
+impl ToolbarShow {
+    /// The controls as (`toolbar.show` name, label, icon), in the Show section's order.
+    pub const CONTROLS: [(&'static str, &'static str, &'static str); 4] = [
+        ("fillStroke", "Fill and Stroke Controls", "dc-stroke"),
+        ("coloring", "Coloring Controls", "dc-gradient"),
+        ("drawMode", "Draw Mode Controls", "dc-draw-normal"),
+        ("screenMode", "Screen Mode Controls", "dc-screen-mode"),
+    ];
+
+    /// The flag of the control named `name`.
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut bool> {
+        match name {
+            "fillStroke" => Some(&mut self.fill_stroke),
+            "coloring" => Some(&mut self.coloring),
+            "drawMode" => Some(&mut self.draw_mode),
+            "screenMode" => Some(&mut self.screen_mode),
+            _ => None,
+        }
+    }
+
+    pub fn get(self, name: &str) -> bool {
+        let mut s = self;
+        s.get_mut(name).is_some_and(|on| *on)
+    }
+
+    pub fn json(self) -> serde_json::Value {
+        serde_json::json!({"fillStroke": self.fill_stroke, "coloring": self.coloring, "drawMode": self.draw_mode, "screenMode": self.screen_mode})
+    }
+}
+
+/// The toolbars Edit Toolbar changed: each one is `None` while it is as it ships.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+pub struct ToolbarEdits {
+    #[serde(default)]
+    pub basic: Option<Vec<ToolbarCategory>>,
+    #[serde(default)]
+    pub advanced: Option<Vec<ToolbarCategory>>,
+}
+
 /// Where the Contextual Task Bar sits once its handle has moved it (`window.taskBar.pin`,
 /// `window.taskBar.reset`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -416,7 +549,12 @@ pub struct TaskBarPlace {
 }
 
 /// A group of panels dragged out of the dock: it floats as a stack of tabs, one panel shown.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+///
+/// Groups sharing a `column` float as one set, stacked top to bottom in list order, like the panel
+/// groups of a dock in Illustrator's workspace
+/// (<https://helpx.adobe.com/illustrator/using/workspace-basics.html>): the set moves by the top
+/// group's title bar, and a group dragged by its tab strip leaves it.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct FloatingPanels {
     /// Panel ids (`window.panel`), in tab order.
     pub panels: Vec<String>,
@@ -428,6 +566,17 @@ pub struct FloatingPanels {
     /// A width the group was given (the Tabs panel sized over its text), else its panels' own.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub width: Option<f32>,
+    /// The set this group is stacked in with others (the same number), top to bottom in list
+    /// order; none when it floats on its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub column: Option<u32>,
+    /// Collapsed to its tabs (a double-click on a tab), its panel hidden.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub collapsed: bool,
+    /// Docked as a column of the dock (with the rest of its set) instead of floating: the columns
+    /// stand left of the icon column, 1 next to it, counting left.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub docked: Option<u32>,
 }
 
 impl FloatingPanels {
@@ -440,9 +589,44 @@ impl FloatingPanels {
             g.active = g.active.min(g.panels.len().saturating_sub(1));
             !g.panels.is_empty()
         });
+        Self::tidy(groups);
         if toolbar_pos.is_some_and(|p| !p.iter().all(|v| v.is_finite())) {
             *toolbar_pos = None;
         }
+    }
+
+    /// Keep each set's groups together in the list, after its first one and in the order they
+    /// come, at its first one's position and in its dock column; a set left with one group floats
+    /// (or stays docked) on its own; the dock columns are numbered 1, 2… without gaps.
+    pub fn tidy(groups: &mut Vec<FloatingPanels>) {
+        let mut out: Vec<FloatingPanels> = Vec::with_capacity(groups.len());
+        for mut g in groups.drain(..) {
+            match g.column.and_then(|c| out.iter().rposition(|o| o.column == Some(c))) {
+                Some(i) => {
+                    if let Some(first) = out.iter().find(|o| o.column == g.column) {
+                        g.pos = first.pos;
+                        g.docked = first.docked;
+                    }
+                    out.insert(i + 1, g);
+                }
+                None => out.push(g),
+            }
+        }
+        let alone: Vec<u32> = out.iter().filter_map(|g| g.column).filter(|c| out.iter().filter(|g| g.column == Some(*c)).count() < 2).collect();
+        for g in &mut out {
+            if g.column.is_some_and(|c| alone.contains(&c)) {
+                g.column = None;
+            }
+        }
+        let mut numbers: Vec<u32> = out.iter().filter_map(|g| g.docked).collect();
+        numbers.sort_unstable();
+        numbers.dedup();
+        for g in &mut out {
+            if let Some(d) = g.docked {
+                g.docked = numbers.iter().position(|n| *n == d).and_then(|k| u32::try_from(k + 1).ok());
+            }
+        }
+        *groups = out;
     }
 }
 
@@ -451,6 +635,7 @@ impl UiState {
     pub fn sanitized(mut self) -> Self {
         self.dialog = None;
         self.flyout = None;
+        self.tools_drawer = false;
         self.palette_open = false;
         self.status.clear();
         self.about = false;
@@ -465,6 +650,9 @@ impl UiState {
             f.tools.first().is_some_and(|k| seen.insert(k.clone()))
         });
         FloatingPanels::sanitize(&mut self.floating_panels, &mut self.toolbar_pos);
+        crate::edit_toolbar::sanitize(&mut self.toolbar_edits);
+        self.docking = self.docking.filter(crate::panel_docking::valid);
+        self.docking_icons.retain(|id| ICON_PANELS.iter().any(|entry| entry.0 == id));
         // Overrides that can't fire (modifier-only chords recorded by older versions, #487) give
         // the default back.
         self.shortcut_overrides.retain(|_, c| c.is_empty() || crate::shortcut_editor::normalize(c).is_some());
@@ -488,12 +676,21 @@ impl Default for UiState {
             task_bar_place: TaskBarPlace::default(),
             slot_tool: Default::default(),
             floating_flyouts: vec![],
+            toolbar_edits: ToolbarEdits::default(),
+            toolbar_show: ToolbarShow::default(),
+            tools_drawer: false,
             floating_panels: vec![],
+            docking: None,
+            docking_hidden: Default::default(),
+            docking_icons: Default::default(),
+            docking_generation: 0,
             toolbar_pos: None,
             status_bar: true,
             dock: true,
             view: ViewFlags::default(),
             dialog: None,
+            told: vec![],
+            answering_control: false,
             flyout: None,
             group_tool: vectorcraft_tools::TOOL_GROUPS.iter().map(|g| g[0].id.to_string()).collect(),
             status: String::new(),
@@ -516,11 +713,18 @@ impl Default for UiState {
             library_panel: None,
             flattener_preview: Default::default(),
             color_guide_limit: String::new(),
+            align_to: Default::default(),
+            color_mode: None,
             svg_options: Value::Null,
             place_link: true,
             dialog_file: None,
+            pending_fonts: vec![],
+            fonts_dialog: None,
+            dialog_search: None,
+            links_search: None,
             dxf_options: Value::Null,
             eps_options: Value::Null,
+            offset_path: Value::Null,
             dxf_import: Value::Null,
             home: None,
             layers_panel: Default::default(),

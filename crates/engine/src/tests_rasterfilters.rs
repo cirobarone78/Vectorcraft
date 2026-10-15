@@ -1,6 +1,8 @@
-//! The Photoshop-style raster effects (Effect › Blur › Radial Blur and Smart Blur, Sharpen ›
-//! Unsharp Mask): applied and edited as commands, listed in the catalogue, drawn on the canvas,
-//! and written to PDF and SVG as images of the effected object.
+//! The Photoshop-style raster effects (Effect › Blur › Radial Blur and Smart Blur, Brush Strokes,
+//! Distort › Diffuse Glow, Glass and Ocean Ripple, Pixelate › Color Halftone, Crystallize, Mezzotint and Pointillize, Sharpen › Unsharp Mask, Texture ›
+//! Craquelure, Grain, Mosaic Tiles, Patchwork, Stained Glass and Texturizer, Video): applied and
+//! edited as commands, listed in the catalogue, drawn on the canvas, and written to PDF and SVG
+//! as images of the effected object.
 
 use serde_json::{Value, json};
 use vectorcraft_doc::NodeKind;
@@ -15,6 +17,44 @@ const EFFECTS: [(&str, &str); 3] = [
     ("blur.smart", r#"{"radius": 8, "threshold": 100}"#),
     ("sharpen.unsharpMask", r#"{"amount": 300, "radius": 3}"#),
 ];
+
+/// Effect › Brush Strokes, at their defaults.
+const BRUSH_STROKES: [(&str, &str); 8] = [
+    ("brushStrokes.accentedEdges", "{}"),
+    ("brushStrokes.angledStrokes", "{}"),
+    ("brushStrokes.crosshatch", "{}"),
+    ("brushStrokes.darkStrokes", "{}"),
+    ("brushStrokes.inkOutlines", "{}"),
+    ("brushStrokes.spatter", "{}"),
+    ("brushStrokes.sprayedStrokes", "{}"),
+    ("brushStrokes.sumiE", "{}"),
+];
+
+/// Effect › Artistic › Film Grain, at its defaults.
+const ARTISTIC: [(&str, &str); 1] = [("artistic.filmGrain", "{}")];
+
+/// Effect › Distort (Diffuse Glow with its highlights glowing from a low brightness up, as the
+/// striped art's reds are dark).
+const DISTORT: [(&str, &str); 3] =
+    [("distort.diffuseGlow", r#"{"clearAmount": 0, "glowAmount": 20}"#), ("distort.glass", "{}"), ("distort.oceanRipple", "{}")];
+
+/// Effect › Pixelate, at their defaults.
+const PIXELATE: [(&str, &str); 4] =
+    [("pixelate.colorHalftone", "{}"), ("pixelate.crystallize", "{}"), ("pixelate.mezzotint", "{}"), ("pixelate.pointillize", "{}")];
+
+/// Effect › Texture, at their defaults.
+const TEXTURE: [(&str, &str); 6] = [
+    ("texture.craquelure", "{}"),
+    ("texture.grain", "{}"),
+    ("texture.mosaicTiles", "{}"),
+    ("texture.patchwork", "{}"),
+    ("texture.stainedGlass", "{}"),
+    ("texture.texturizer", "{}"),
+];
+
+/// Effect › Video (NTSC Colors leaves the striped art's legal colours as they are: see
+/// `ntsc_colors_draws_saturated_yellow_safer`).
+const VIDEO: [(&str, &str); 1] = [("video.deinterlace", r#"{"create": "interpolation"}"#)];
 
 /// A group of a red square and a darker red stripe across it; returns the group's id.
 fn striped() -> (Session, u64) {
@@ -52,10 +92,33 @@ fn listed_applied_edited_and_undone() {
     let menus: Vec<Value> =
         EFFECTS.iter().map(|(id, _)| list["catalog"].as_array().unwrap().iter().find(|e| e["id"] == *id).unwrap()["menu"].clone()).collect();
     assert_eq!(menus, [json!(["Effect", "Blur"]), json!(["Effect", "Blur"]), json!(["Effect", "Sharpen"])]);
-    // Junk parameters are stored as given and read clamped; the canvas still draws.
+    for (group, menu) in [
+        (ARTISTIC.as_slice(), "Artistic"),
+        (BRUSH_STROKES.as_slice(), "Brush Strokes"),
+        (DISTORT.as_slice(), "Distort"),
+        (PIXELATE.as_slice(), "Pixelate"),
+        (TEXTURE.as_slice(), "Texture"),
+        (VIDEO.as_slice(), "Video"),
+        ([("video.ntscColors", "{}")].as_slice(), "Video"),
+    ] {
+        for (id, _) in group {
+            let e = list["catalog"].as_array().unwrap().iter().find(|e| e["id"] == *id).unwrap_or_else(|| panic!("{id} listed"));
+            assert_eq!((&e["raster"], &e["menu"]), (&json!(true), &json!(["Effect", menu])), "{id}");
+        }
+    }
+    // Numbers far out of range are stored as given and read clamped; the canvas still draws.
     for (id, _) in EFFECTS {
-        s.execute("effect.apply", &json!({"effect": id, "ids": [g], "params": {"amount": 1e308, "radius": -1e308, "threshold": "x", "quality": 7}}))
-            .unwrap();
+        let defaults = vectorcraft_render::effects::default_params(id).unwrap();
+        let junk: serde_json::Map<String, Value> = defaults
+            .as_object()
+            .unwrap()
+            .iter()
+            .filter(|(_, v)| v.is_number())
+            .enumerate()
+            .map(|(i, (k, _))| (k.clone(), json!(if i % 2 == 0 { 1e308 } else { -1e308 })))
+            .collect();
+        assert!(!junk.is_empty(), "{id}");
+        s.execute("effect.apply", &json!({"effect": id, "ids": [g], "params": junk})).unwrap();
     }
     let _ = render(&s);
     let n = s.doc().unwrap().doc.node(NodeId(g)).unwrap().clone();
@@ -71,7 +134,7 @@ fn listed_applied_edited_and_undone() {
 
 #[test]
 fn each_effect_changes_the_canvas_and_draws_the_same_twice() {
-    for (id, params) in EFFECTS {
+    for (id, params) in EFFECTS.into_iter().chain(ARTISTIC).chain(BRUSH_STROKES).chain(DISTORT).chain(PIXELATE).chain(TEXTURE).chain(VIDEO) {
         let (mut s, g) = striped();
         let plain = render(&s);
         let params: Value = serde_json::from_str(params).unwrap();
@@ -100,7 +163,7 @@ fn spin_blur_reaches_past_the_corners() {
 
 #[test]
 fn pdf_and_svg_write_the_effected_object_as_an_image() {
-    for (id, params) in EFFECTS {
+    for (id, params) in EFFECTS.into_iter().chain(ARTISTIC).chain(BRUSH_STROKES).chain(DISTORT).chain(PIXELATE).chain(TEXTURE).chain(VIDEO) {
         let (mut s, g) = striped();
         let params: Value = serde_json::from_str(params).unwrap();
         s.execute("effect.apply", &json!({"effect": id, "ids": [g], "params": params})).unwrap();
@@ -130,4 +193,23 @@ fn expand_appearance_makes_an_image() {
     s.execute("effect.apply", &json!({"effect": "sharpen.unsharpMask", "ids": [g]})).unwrap();
     s.execute("effect.expandAppearance", &json!({"ids": [g]})).unwrap();
     assert!(matches!(s.doc().unwrap().doc.node(NodeId(g)).unwrap().kind, NodeKind::Image(_)));
+}
+
+/// Video › NTSC Colors on the canvas: a saturated yellow, too strong for a television signal, draws
+/// less saturated; the effect is listed and applies without options.
+#[test]
+fn ntsc_colors_draws_saturated_yellow_safer() {
+    let mut s = Session::new();
+    s.execute("file.new", &json!({"width": 200, "height": 200})).unwrap();
+    let id = s.execute("shape.rectangle", &json!({"x": 50, "y": 50, "width": 100, "height": 100})).unwrap()["id"].as_u64().unwrap();
+    s.execute("paint.setFill", &json!({"color": "#ffff00", "ids": [id]})).unwrap();
+    s.execute("paint.setStroke", &json!({"none": true, "ids": [id]})).unwrap();
+    let before = render(&s);
+    s.execute("effect.apply", &json!({"effect": "video.ntscColors", "ids": [id]})).unwrap();
+    let after = render(&s);
+    let px = |r: &Rendered| r.pixel(100, 100);
+    let (a, b) = (px(&before), px(&after));
+    assert_eq!(&a[..3], &[255, 255, 0]);
+    assert!(b[2] > 20 && b[0] < 255 && b[3] == 255, "less saturated: {b:?}");
+    assert_eq!(after.pixels, render(&s).pixels, "deterministic");
 }

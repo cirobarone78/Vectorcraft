@@ -359,3 +359,31 @@ fn new_type_snaps_to_smart_guides() {
     let area = json!({"width": 100.0, "height": 100.0});
     assert!(acts.iter().any(|a| matches!(a, Action::Exec(cmd, v) if cmd == "text.create" && v["x"] == 100.0 && v["area"] == area)), "{acts:?}");
 }
+
+#[test]
+fn layout_cache_follows_fonts_added_later() {
+    // Other tests can load system fonts; this assertion needs its own process-wide database.
+    #[cfg(not(target_arch = "wasm32"))]
+    if std::env::var("VECTORCRAFT_FONT_CACHE_TEST_CHILD").as_deref() != Ok("1") {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "text::tests::layout_cache_follows_fonts_added_later", "--nocapture", "--test-threads=1"])
+            .env("VECTORCRAFT_FONT_CACHE_TEST_CHILD", "1")
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            output.status.success() && stdout.contains("test result: ok. 1 passed; 0 failed;"),
+            "isolated font cache test failed:\n{stdout}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+        );
+        return;
+    }
+    // The web build adds fonts after startup: a caret layout cached before one arrived is stale.
+    let (d, id, tool) = editing("abc");
+    let NodeKind::Text(t) = &d.node(id).unwrap().kind else { panic!("not text") };
+    let before = tool.layout(t);
+    assert!(Arc::ptr_eq(&before, &tool.layout(t)), "cached while the fonts don't change");
+    let font = vectorcraft_text::test_fonts::variable_font().unwrap();
+    assert!(FontDb::global().add_font(font) > 0, "the test font is new to this process");
+    assert!(!Arc::ptr_eq(&before, &tool.layout(t)), "a font added after the layout must refresh it");
+}

@@ -59,6 +59,9 @@ struct Preedit {
     active: Option<Range<usize>>,
 }
 
+/// The edited text's layout, keyed by the font database's generation and the text.
+type CachedLayout = ((u64, TextObject), Arc<TextLayout>);
+
 #[derive(Default)]
 pub struct TypeTool {
     vertical: bool,
@@ -86,7 +89,7 @@ pub struct TypeTool {
     clicks: (Option<Point>, u8),
     /// Styled copy of the last copied range (pasting the same plain text keeps its styles).
     clipboard: Vec<TextRun>,
-    cache: Mutex<Option<(TextObject, Arc<TextLayout>)>>,
+    cache: Mutex<Option<CachedLayout>>,
 }
 
 impl TypeTool {
@@ -106,16 +109,19 @@ impl TypeTool {
         }
     }
 
-    /// Layout of `t`, cached by content (overlays run every frame).
+    /// Layout of `t`, cached by content (overlays run every frame) and by the fonts available (the
+    /// web build adds fonts after startup).
     fn layout(&self, t: &TextObject) -> Arc<TextLayout> {
+        let fonts = FontDb::global().generation();
         let mut c = self.cache.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some((k, l)) = c.as_ref()
+        if let Some(((g, k), l)) = c.as_ref()
+            && *g == fonts
             && k == t
         {
             return l.clone();
         }
         let l = Arc::new(vectorcraft_text::layout(FontDb::global(), t));
-        *c = Some((t.clone(), l.clone()));
+        *c = Some(((fonts, t.clone()), l.clone()));
         l
     }
 
@@ -375,6 +381,10 @@ impl Tool for TypeTool {
     fn wants_text(&self) -> bool {
         self.editing.is_some()
     }
+    /// Escape while editing is the tool's: it goes on to the Selection tool (#1686).
+    fn claims_key(&self, _: &ToolContext, key: ToolKey) -> bool {
+        key == ToolKey::Escape && self.editing.is_some()
+    }
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
         match ev.kind {
             PointerKind::Down => {
@@ -516,7 +526,13 @@ impl Tool for TypeTool {
             self.goal_x = None;
         }
         match key {
-            ToolKey::Escape => self.finish(cx),
+            // Escape ends editing and goes to the Selection tool, the type selected: the keyboard
+            // is free for tool shortcuts again (#1686).
+            ToolKey::Escape => {
+                let mut out = self.finish(cx);
+                out.push(Action::SwitchTool("selection".into()));
+                out
+            }
             ToolKey::Enter => self.replace(cx, "\n", None),
             ToolKey::Tab => self.replace(cx, "\t", None),
             ToolKey::Backspace | ToolKey::Delete if a != b => self.replace(cx, "", None),
@@ -524,8 +540,10 @@ impl Tool for TypeTool {
                 self.anchor = if word { edit::prev_word(&text, self.caret) } else { edit::prev_char(&text, self.caret) };
                 self.replace(cx, "", None)
             }
+            // Backspace takes back one character (a mistyped Thai tone mark, say); Delete, the
+            // Left and Right arrows a whole cluster.
             ToolKey::Delete if self.caret < len => {
-                self.anchor = if word { edit::next_word(&text, self.caret) } else { edit::next_char(&text, self.caret) };
+                self.anchor = if word { edit::next_word(&text, self.caret) } else { edit::next_cluster(&text, self.caret) };
                 self.replace(cx, "", None)
             }
             ToolKey::Left => {
@@ -543,7 +561,7 @@ impl Tool for TypeTool {
                     if lay.glyphs.iter().any(|g| g.rtl) {
                         vectorcraft_text::caret_horizontal(&lay, self.caret, false)
                     } else {
-                        edit::prev_char(&text, self.caret)
+                        edit::prev_cluster(&text, self.caret)
                     }
                 };
                 self.move_to(to, mods.shift)
@@ -563,7 +581,7 @@ impl Tool for TypeTool {
                     if lay.glyphs.iter().any(|g| g.rtl) {
                         vectorcraft_text::caret_horizontal(&lay, self.caret, true)
                     } else {
-                        edit::next_char(&text, self.caret)
+                        edit::next_cluster(&text, self.caret)
                     }
                 };
                 self.move_to(to, mods.shift)
