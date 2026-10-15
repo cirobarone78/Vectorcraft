@@ -39,6 +39,8 @@ log = { workspace = true }
 web-time = "1"
 
 [dev-dependencies]
+# Synthetic CorelDRAW files for the drop tests.
+cdr = { workspace = true, features = ["synth"] }
 egui_kittest = { workspace = true, features = ["wgpu", "snapshot"] }
 vectorcraft-testkit = { workspace = true }
 wat = { workspace = true }

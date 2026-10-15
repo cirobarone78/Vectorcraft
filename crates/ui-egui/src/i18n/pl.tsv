@@ -4549,6 +4549,7 @@ imageTrace	Outline	Kontur
 	Highlight Area	Obszar świateł
 file-filter	All readable files	Wszystkie obsługiwane pliki
 file-filter	All placeable files	Wszystkie pliki do umieszczenia
+file-filter	CorelDRAW Drawing	Rysunek CorelDRAW
 file-filter	Swatch libraries	Biblioteki próbek
 file-filter	Flattener presets	Ustawienia spłaszczania
 file-filter	PDF presets	Ustawienia PDF

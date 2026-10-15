@@ -268,6 +268,82 @@ proptest! {
     }
 }
 
+// ---------- CorelDRAW ----------
+
+#[test]
+fn the_corel_samples_reach_the_document() {
+    for (name, bytes) in [("x.cdr", cdr::synth::triangle_riff()), ("x.cdr", cdr::synth::package(&cdr::synth::triangle_riff(), "t"))] {
+        let l = vectorcraft_engine::cmd::fileio::load(name, &bytes).unwrap();
+        assert_eq!(l.format.id, "cdr");
+        assert_eq!(l.doc.layers.iter().flat_map(|l| l.children().into_iter().flatten()).count(), 1);
+    }
+}
+
+proptest! {
+    #![proptest_config(config())]
+
+    #[test]
+    fn corel_riff_streams_with_mutated_bytes_render_and_export(
+        cut in 0usize..2048,
+        edits in prop::collection::vec((0usize..2048, any::<u8>()), 0..24),
+    ) {
+        let mut bytes = cdr::synth::triangle_riff();
+        let n = bytes.len();
+        // Keep the signature so the reader, not the sniffer, sees the damage.
+        for (at, b) in edits { bytes[12 + at % (n - 12)] = b; }
+        bytes.truncate(cut.max(12));
+        survive("CorelDRAW RIFF", || vectorcraft_engine::cmd::fileio::load("x.cdr", &bytes).ok().map(|l| l.doc))?;
+    }
+
+    #[test]
+    fn corel_packages_with_mutated_bytes_render_and_export(edits in prop::collection::vec((0usize..4096, any::<u8>()), 1..16)) {
+        let mut bytes = cdr::synth::package(&cdr::synth::triangle_riff(), "t");
+        let n = bytes.len();
+        for (at, b) in edits { bytes[at % n] = b; }
+        survive("CorelDRAW package", || vectorcraft_engine::cmd::fileio::load("x.cdr", &bytes).ok().map(|l| l.doc))?;
+    }
+
+    #[test]
+    fn corel_shapes_and_type_with_mutated_bytes_render_and_export(
+        cut in 0usize..4096,
+        edits in prop::collection::vec((0usize..4096, any::<u8>()), 0..24),
+    ) {
+        let mut bytes = cdr::synth::shapes_riff();
+        let n = bytes.len();
+        for (at, b) in edits { bytes[12 + at % (n - 12)] = b; }
+        bytes.truncate(cut.max(12));
+        survive("CorelDRAW shapes and type", || vectorcraft_engine::cmd::fileio::load("x.cdr", &bytes).ok().map(|l| l.doc))?;
+    }
+
+    #[test]
+    fn corel_polygons_splines_and_bitmaps_with_mutated_bytes_render_and_export(
+        cut in 0usize..4096,
+        edits in prop::collection::vec((0usize..4096, any::<u8>()), 0..24),
+    ) {
+        let mut bytes = cdr::synth::more_shapes_riff();
+        let n = bytes.len();
+        for (at, b) in edits { bytes[12 + at % (n - 12)] = b; }
+        bytes.truncate(cut.max(12));
+        survive("CorelDRAW polygons, splines and bitmaps", || vectorcraft_engine::cmd::fileio::load("x.cdr", &bytes).ok().map(|l| l.doc))?;
+    }
+
+    #[test]
+    fn corel_x6_packages_with_mutated_bytes_render_and_export(edits in prop::collection::vec((0usize..4096, any::<u8>()), 1..16)) {
+        let mut bytes = cdr::synth::x6_package();
+        let n = bytes.len();
+        for (at, b) in edits { bytes[at % n] = b; }
+        survive("CorelDRAW X6 package", || vectorcraft_engine::cmd::fileio::load("x.cdr", &bytes).ok().map(|l| l.doc))?;
+    }
+
+    #[test]
+    fn corel_garbage_never_panics(tail in prop::collection::vec(any::<u8>(), 0..2048), version in b'3'..=b'Z') {
+        let mut bytes = b"RIFF\0\0\0\0CDR".to_vec();
+        bytes.push(version);
+        bytes.extend(tail);
+        survive("CorelDRAW garbage", || vectorcraft_engine::cmd::fileio::load("x.cdr", &bytes).ok().map(|l| l.doc))?;
+    }
+}
+
 /// Import must not panic; whatever comes back must render and export without panicking either.
 fn survive(what: &str, import: impl FnOnce() -> Option<Document>) -> Result<(), TestCaseError> {
     let r = catch_quiet(|| {

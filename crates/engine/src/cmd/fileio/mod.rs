@@ -21,6 +21,7 @@
 
 mod affinity;
 mod batch;
+mod coreldraw;
 pub mod dxf;
 pub mod dxfimport;
 mod encode;
@@ -586,7 +587,14 @@ pub const FORMATS: &[Format] = &[
     reader("affinity", "Affinity", &["af", "afdesign", "afpub"], "application/vnd.affinity", false),
     // Photoshop's large document format: read like a PSD (its merged image), never written.
     reader("psb", "PSB", &["psb"], "image/x-psb", true),
+    // CorelDRAW drawings, X4+ ZIP packages and version 3–13 RIFF files alike (read, never written).
+    // Also known as `application/x-cdr` and `image/x-cdr` ([`CDR_MIME_ALIASES`]).
+    reader("cdr", "CorelDRAW Drawing", &["cdr"], "application/vnd.corel-draw", false),
 ];
+
+/// Other MIME types CorelDRAW files travel under (shared-mime-info lists them as aliases of
+/// `application/vnd.corel-draw`). The desktop entry declares them so file managers offer the app.
+pub const CDR_MIME_ALIASES: &[&str] = &["application/x-cdr", "image/x-cdr"];
 
 /// Every extension `document.open` reads (the "All readable files" filter of open dialogs).
 pub const OPEN_EXTS: &[&str] = &[
@@ -615,6 +623,7 @@ pub const OPEN_EXTS: &[&str] = &[
     "af",
     "afdesign",
     "afpub",
+    "cdr",
 ];
 
 /// Extensions in [`OPEN_EXTS`] the desktop packaging doesn't associate with VectorCraft: Photoshop
@@ -664,6 +673,7 @@ pub const PLACE_EXTS: &[&str] = &[
     "af",
     "afdesign",
     "afpub",
+    "cdr",
     "txt",
 ];
 
@@ -1081,6 +1091,8 @@ pub(crate) fn write_or_return(path: Option<&str>, bytes: &[u8], extra: Value) ->
 mod tests;
 #[cfg(test)]
 mod tests_affinity;
+#[cfg(test)]
+mod tests_cdr;
 #[cfg(test)]
 mod tests_pdf;
 #[cfg(test)]

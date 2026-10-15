@@ -4713,6 +4713,7 @@ imageTrace	Outline	Obrys
 # Czech render-site follow-up (AI drafts; native review requested).
 file-filter	All readable files	Všechny čitelné soubory
 file-filter	All placeable files	Všechny soubory pro umístění
+file-filter	CorelDRAW Drawing	Kresba CorelDRAW
 file-filter	Swatch libraries	Knihovny vzorníků
 file-filter	Flattener presets	Přednastavení sloučení průhlednosti
 file-filter	PDF presets	Přednastavení PDF

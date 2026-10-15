@@ -95,6 +95,14 @@
       <key>LSHandlerRank</key><string>Alternate</string>
     </dict>
     <dict>
+      <key>CFBundleTypeName</key><string>CorelDRAW Drawing</string>
+      <key>CFBundleTypeExtensions</key><array><string>cdr</string></array>
+      <key>CFBundleTypeMIMETypes</key>
+      <array><string>application/vnd.corel-draw</string><string>application/x-cdr</string><string>image/x-cdr</string></array>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+    </dict>
+    <dict>
       <key>CFBundleTypeName</key><string>DXF</string>
       <key>CFBundleTypeExtensions</key><array><string>dxf</string></array>
       <key>CFBundleTypeRole</key><string>Editor</string>

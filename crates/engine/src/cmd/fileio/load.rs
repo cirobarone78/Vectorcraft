@@ -67,6 +67,10 @@ pub fn detect(name: &str, bytes: &[u8]) -> Option<&'static Format> {
     if vectorcraft_affinity::is_affinity(bytes) {
         return format("affinity");
     }
+    // Before the image sniff: a bare CorelDRAW file is RIFF, as WebP is (told apart by form type).
+    if super::coreldraw::sniff(bytes) {
+        return format("cdr");
+    }
     if vectorcraft_format::sniff(bytes) {
         // A template keeps its meaning from the extension, like .ait.
         return by_name.filter(|f| f.id == "template").or_else(|| format("vectorcraft"));
@@ -243,6 +247,10 @@ pub fn load_with(name: &str, bytes: &[u8], opts: &LoadOptions) -> Result<Loaded>
         }
         "emf" | "wmf" => {
             let (doc, warnings) = super::metafile::import(bytes)?;
+            (doc, warnings, false)
+        }
+        "cdr" => {
+            let (doc, warnings) = super::coreldraw::import(bytes).map_err(|e| err(format!("can't open `{}`: {e}", file_name(name))))?;
             (doc, warnings, false)
         }
         "affinity" => {

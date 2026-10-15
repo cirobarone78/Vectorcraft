@@ -704,3 +704,56 @@ fn a_file_placed_while_idle_follows_its_changes() {
     };
     assert!(idle(&mut app, &ctx, &mut time, 10.0, &updated), "the changed file was never read again");
 }
+
+/// Paths in the active document's layers.
+fn active_paths(app: &VectorcraftApp) -> usize {
+    let doc = &app.session.active().unwrap().doc;
+    doc.layers.iter().flat_map(|l| l.children().into_iter().flatten()).filter(|n| matches!(n.kind, NodeKind::Path { .. })).count()
+}
+
+/// CorelDRAW files (X4+ packages and version 3–13 RIFF files) are documents: dropped on the
+/// desktop window they open as tabs of their own, by path or, without one, by their bytes.
+#[test]
+fn dropped_corel_drawings_open_as_documents() {
+    let mut app = app();
+    let ctx = egui::Context::default();
+    laid_out(&mut app, &ctx);
+    assert_eq!(app.drop_target("a.cdr", None, false), DropTarget::Open);
+    let legacy = temp_file("legacy.cdr", &cdr::synth::triangle_riff());
+    let modern = temp_file("modern.cdr", &cdr::synth::package(&cdr::synth::triangle_riff(), "Triangle"));
+    for (n, path) in [legacy, modern].iter().enumerate() {
+        frame(&mut app, &ctx, vec![], &[path], false);
+        assert_eq!(app.session.documents().len(), n + 2, "{path} opened");
+        assert_eq!(active_paths(&app), 1);
+        // Read, not written: Save asks for a new file rather than overwriting the drawing.
+        assert!(app.session.active().unwrap().path.is_none());
+    }
+    // A drop that only carries bytes (no path, no extension) is told apart by its content.
+    let bytes = Arc::new(MockDrop { path: Default::default(), bytes: Ok(cdr::synth::triangle_riff()) }) as egui::DroppedFileHandle;
+    frame_files(&mut app, &ctx, vec![], vec![bytes], false);
+    assert_eq!(app.session.documents().len(), 4);
+    assert_eq!(active_paths(&app), 1);
+}
+
+/// The web: files dropped off the canvas arrive through the open inbox and open; dropped on the
+/// canvas they are placed there, as SVG and PDF files are.
+#[test]
+fn web_corel_drops_open_from_the_inbox_and_place_on_the_canvas() {
+    let mut app = app();
+    let ctx = egui::Context::default();
+    let rect = laid_out(&mut app, &ctx);
+    let inbox: crate::Inbox = Arc::default();
+    app.services.inbox = Some(inbox.clone());
+    inbox.lock().unwrap().push(("web.cdr".into(), cdr::synth::package(&cdr::synth::triangle_riff(), "Triangle")));
+    frame(&mut app, &ctx, vec![], &[], false);
+    assert_eq!(app.session.documents().len(), 2);
+    assert_eq!(app.session.active().unwrap().doc.title, "web.cdr");
+
+    let pos = rect.center();
+    let DropTarget::Place(at) = app.drop_target("web.cdr", Some(pos), false) else { panic!("a canvas drop places") };
+    let before = active_paths(&app);
+    crate::place::drop_files(&mut app, vec![(DropTarget::Place(at), ("web.cdr".into(), None, cdr::synth::triangle_riff()))]);
+    assert_eq!(app.session.documents().len(), 2, "placed, not opened");
+    let layer = &app.session.active().unwrap().doc.layers[0];
+    assert!(layer.children().unwrap().len() > before, "the drawing was placed");
+}

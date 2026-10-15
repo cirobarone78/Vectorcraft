@@ -27,6 +27,8 @@ vectorcraft-metafile = { workspace = true }
 vectorcraft-plugins = { workspace = true }
 vectorcraft-affinity = { workspace = true }
 vectorcraft-scriptcheck = { workspace = true }
+# CorelDRAW .cdr import (File › Open, Place, drops).
+cdr = { workspace = true }
 image = { workspace = true }
 flate2 = { workspace = true }
 kurbo = { workspace = true }
@@ -37,6 +39,7 @@ log = { workspace = true }
 
 [dev-dependencies]
 vectorcraft-affinity = { workspace = true, features = ["synth"] }
+cdr = { workspace = true, features = ["synth"] }
 crc32fast = { workspace = true }
 vectorcraft-testkit = { workspace = true }
 proptest = { workspace = true }

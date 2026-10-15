@@ -4582,6 +4582,7 @@ effect	Regular	Regular
 	DWG (use DXF)	DWG (usa DXF)
 file-filter	All readable files	Todos los archivos legibles
 file-filter	All placeable files	Todos los archivos que se pueden colocar
+file-filter	CorelDRAW Drawing	Dibujo de CorelDRAW
 file-filter	Swatch libraries	Bibliotecas de muestras
 file-filter	Flattener presets	Preajustes del acoplador
 file-filter	PDF presets	Preajustes de PDF

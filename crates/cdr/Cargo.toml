@@ -1,0 +1,36 @@
+[package]
+name = "cdr"
+description = "Reader for CorelDRAW documents: the X4+ ZIP package, its metadata XML and the RIFF chunk tree"
+version.workspace = true
+edition.workspace = true
+# src/palettes.rs is ported from libcdr under the MPL 2.0 (LICENSE-MPL-2.0); the rest is the workspace licence.
+license = "(MIT OR Apache-2.0) AND MPL-2.0"
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Synthetic-stream builders for tests and fuzz seeds; not a CorelDRAW exporter.
+synth = []
+
+[dependencies]
+vectorcraft-geom = { workspace = true }
+vectorcraft-color = { workspace = true }
+vectorcraft-doc = { workspace = true }
+# The native format the `test_cdr` harness writes and validates against.
+vectorcraft-format = { workspace = true }
+# Pure-Rust inflate (the workspace's flate2 `rust_backend`) keeps the crate building for wasm.
+flate2 = { workspace = true }
+nom = "8"
+# Windows code pages of eight-bit CorelDRAW text (pure Rust, builds for wasm).
+encoding_rs = "0.8"
+# Bitmaps: PNG for image nodes, and the BMP files of version 4 drawings.
+image = { workspace = true }
+# Version 16+ text styles are JSON.
+serde_json = { workspace = true }
+quick-xml = "0.41"
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
+
+[dev-dependencies]
+proptest = { workspace = true }

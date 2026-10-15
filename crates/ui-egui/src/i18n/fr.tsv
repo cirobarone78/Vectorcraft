@@ -4774,6 +4774,7 @@ effect	Regular	Régulier
 effect	Vertical	Vertical
 file-filter	All placeable files	Tous les fichiers importables
 file-filter	All readable files	Tous les fichiers lisibles
+file-filter	CorelDRAW Drawing	Dessin CorelDRAW
 file-filter	Flattener presets	Paramètres prédéfinis d’aplatissement
 file-filter	PDF presets	Paramètres prédéfinis PDF
 file-filter	PDF-compatible .ai	.ai compatible PDF
