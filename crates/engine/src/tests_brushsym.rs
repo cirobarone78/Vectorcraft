@@ -590,3 +590,19 @@ fn brushes_and_symbols_survive_vectorcraft_round_trip() {
     let b = s2.doc().unwrap().doc.node(NodeId(r["id"].as_u64().unwrap())).unwrap().geometric_bounds().unwrap();
     assert!(close(b, Rect::new(60.0, 80.0, 140.0, 120.0), 1e-9));
 }
+
+#[test]
+fn symbol_new_dynamic_flag_lists_and_duplicates() {
+    let mut s = session();
+    s.execute("shape.rectangle", &json!({"x": 10, "y": 10, "width": 40, "height": 30})).unwrap();
+    let r = s.execute("symbol.new", &json!({"name": "Dyn", "dynamic": true})).unwrap();
+    assert_eq!(r["dynamic"], true);
+    let list = s.execute("symbol.list", &json!({})).unwrap();
+    let sym = list["symbols"].as_array().unwrap().iter().find(|s| s["name"] == "Dyn").unwrap();
+    assert_eq!(sym["dynamic"], true);
+    let dup = s.execute("symbol.duplicate", &json!({"name": "Dyn"})).unwrap();
+    assert_eq!(dup["dynamic"], true);
+    s.execute("shape.rectangle", &json!({"x": 60, "y": 10, "width": 20, "height": 20})).unwrap();
+    let r2 = s.execute("symbol.new", &json!({"name": "Static"})).unwrap();
+    assert_eq!(r2["dynamic"], false);
+}

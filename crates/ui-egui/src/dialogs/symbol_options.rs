@@ -1,7 +1,8 @@
-//! Symbol Options: the name of the symbol New Symbol makes from the selection (`symbol.new`), asked
-//! before the symbol is made, as the Symbols panel's New Symbol button and menu item do.
+//! Symbol Options: the name of the symbol New Symbol makes from the selection (`symbol.new`), and
+//! whether it is a Dynamic Symbol, asked before the symbol is made, as the Symbols panel's New
+//! Symbol button and menu item do.
 //!
-//! Fields: `name`.
+//! Fields: `name`, `dynamic`.
 
 use serde_json::{Value, json};
 
@@ -9,6 +10,7 @@ use super::swatch_options::{grid, label};
 use super::{DialogSpec, form};
 use crate::VectorcraftApp;
 use crate::state::Dialog;
+use crate::widgets;
 
 /// The dialog kind of Symbol Options.
 pub const KIND: &str = "symbolOptions";
@@ -22,7 +24,7 @@ pub fn open(app: &mut VectorcraftApp) -> Result<Value, String> {
         return Err("nothing selected".into());
     }
     let name = st.doc.unique_symbol_name("New Symbol");
-    app.ui.dialog = Some(Dialog::new(KIND, json!({ "name": name })));
+    app.ui.dialog = Some(Dialog::new(KIND, json!({ "name": name, "dynamic": false })));
     Ok(Value::Null)
 }
 
@@ -32,12 +34,22 @@ fn body(_: &mut VectorcraftApp, ui: &mut egui::Ui, d: &mut Dialog) -> bool {
         form::text(ui, d, "name", 190.0);
         ui.end_row();
     });
+    // Static (default) vs Dynamic: Illustrator's Symbol Options Type. Overrides still ahead.
+    ui.add_space(6.0);
+    widgets::subheader(ui, tl!("Type"));
+    let dynamic = d.bool("dynamic");
+    if widgets::radio(ui, tl!("Static Symbol"), !dynamic, true) && dynamic {
+        d.fields.insert("dynamic".into(), json!(false));
+    }
+    if widgets::radio(ui, tl!("Dynamic Symbol"), dynamic, true) && !dynamic {
+        d.fields.insert("dynamic".into(), json!(true));
+    }
     false
 }
 
-/// OK: make the symbol from the selection with the name typed.
+/// OK: make the symbol from the selection with the name and type typed.
 fn confirm(app: &mut VectorcraftApp, d: &Dialog) -> Result<Value, String> {
-    let r = app.run("symbol.new", json!({ "name": d.str("name") }));
+    let r = app.run("symbol.new", json!({ "name": d.str("name"), "dynamic": d.bool("dynamic") }));
     if r.is_ok() {
         app.ui.dialog = None;
     }

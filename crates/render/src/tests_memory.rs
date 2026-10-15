@@ -275,7 +275,7 @@ fn type_with_an_inline_graphic_draws_its_symbols_new_size() {
     for i in 0..4 {
         let mut d = Document::new(200.0, 100.0);
         let art = symbol_art(&mut d);
-        d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+        d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
         let style = CharStyle { size: 24.0, ..Default::default() };
         let mut t = TextObject::point(vectorcraft_geom::Point::new(10.0, 50.0), "A", style.clone());
         t.runs.push(TextRun::inline(InlineArt::new("S"), style.clone()));
@@ -314,7 +314,7 @@ fn symbol_art(d: &mut Document) -> Node {
 fn symbol_doc() -> Document {
     let mut d = Document::new(200.0, 100.0);
     let art = symbol_art(&mut d);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
     let l = d.layers[0].id;
     let xfs = [
         Affine::translate((30.0, 30.0)),
@@ -457,9 +457,9 @@ fn art_placed_again_in_every_frame_keeps_one_outline_per_stroke() {
     if let Some(c) = art.children_mut() {
         c.push(Arc::new(image));
     }
-    d.symbols.push(vectorcraft_doc::Symbol { name: "I".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("I", Arc::new(art)));
     let art = symbol_art(&mut d);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
     let l = d.layers[0].id;
     let instance = |d: &mut Document, symbol: &str, x: f64, y: f64| {
         let id = d.alloc_id();
@@ -556,7 +556,7 @@ fn editing_an_instance_or_a_symbol_places_only_its_art_again() {
     let green = vectorcraft_doc::Appearance::basic(Paint::solid(Color::rgb(0.0, 1.0, 0.0)), Paint::None, 0.0);
     let square = Node::path(d.alloc_id(), vectorcraft_geom::shapes::rectangle(Rect::new(-5.0, -5.0, 5.0, 5.0)), green);
     let t = Node::group(d.alloc_id(), vec![Arc::new(square)]);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "T".into(), art: Arc::new(t) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("T", Arc::new(t)));
     let (l, id) = (d.layers[0].id, d.alloc_id());
     d.insert(Some(l), 0, Node::new(id, NodeKind::SymbolInstance { symbol: "T".into(), xf: Affine::translate((30.0, 80.0)) })).unwrap();
     let opts = RenderOptions::default();
@@ -606,7 +606,7 @@ fn instances_of_art_outside_the_square_follow_their_symbols_art() {
     // the one from x 200 lies from (40, 40) to (60, 60), in it. The 20 × 20 square around the
     // origin lies from (-170, 30) to (-150, 50), left of the view.
     let (off, on) = (square_at(&mut d, 100.0), square_at(&mut d, 200.0));
-    d.symbols.push(vectorcraft_doc::Symbol { name: "Far".into(), art: off.clone() });
+    d.symbols.push(vectorcraft_doc::Symbol::new("Far", off.clone()));
     let (l, id) = (d.layers[0].id, d.alloc_id());
     d.insert(Some(l), 0, Node::new(id, NodeKind::SymbolInstance { symbol: "Far".into(), xf: Affine::translate((-160.0, 40.0)) })).unwrap();
     let opts = RenderOptions::default();
@@ -648,7 +648,7 @@ fn draws_as_new(d: &mut Document, before: &RenderOptions, after: &RenderOptions,
 /// `d` with symbol `Holder` (a group of `members`) shown by one instance at (100, 50).
 fn holder_doc(mut d: Document, members: Vec<Node>) -> Document {
     let holder = Node::group(d.alloc_id(), members.into_iter().map(Arc::new).collect());
-    d.symbols.push(vectorcraft_doc::Symbol { name: "Holder".into(), art: Arc::new(holder) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("Holder", Arc::new(holder)));
     let (l, id) = (d.layers[0].id, d.alloc_id());
     d.insert(Some(l), 0, Node::new(id, NodeKind::SymbolInstance { symbol: "Holder".into(), xf: Affine::translate((100.0, 50.0)) })).unwrap();
     d
@@ -663,7 +663,7 @@ fn art_showing_another_symbol_draws_its_edits() {
     use vectorcraft_doc::text::{CharStyle, InlineArt, TextObject, TextRun};
     let mut d = Document::new(200.0, 100.0);
     let art = symbol_art(&mut d);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
     let style = CharStyle { size: 24.0, ..Default::default() };
     let mut t = TextObject::point(vectorcraft_geom::Point::new(-60.0, 10.0), "A", style.clone());
     t.runs.push(TextRun::inline(InlineArt::new("S"), style.clone()));
@@ -830,7 +830,7 @@ fn live_objects_draw_symbol_and_pattern_art_edits() {
     let with_s = || {
         let mut d = Document::new(200.0, 100.0);
         let art = symbol_art(&mut d);
-        d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+        d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
         d
     };
     let red_bar = |d: &mut Document| {
@@ -844,7 +844,7 @@ fn live_objects_draw_symbol_and_pattern_art_edits() {
     let mut d = with_s();
     let shown = instance(&mut d, "S", Affine::IDENTITY);
     let a = Node::group(d.alloc_id(), vec![Arc::new(shown)]);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "A".into(), art: Arc::new(a) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("A", Arc::new(a)));
     let a = instance(&mut d, "A", Affine::translate((100.0, 50.0)) * Affine::scale(2.0));
     let envelope = arc_envelope(&mut d, vec![a], false);
     edit_draws_as_new(with_art(d, vec![envelope]), red_bar);
@@ -859,7 +859,7 @@ fn live_objects_draw_symbol_and_pattern_art_edits() {
     let mut d = Document::new(200.0, 100.0);
     d.patterns.push(checks(Color::rgb(1.0, 0.0, 0.0)));
     let band = filled(&mut d, rectangle(Rect::new(-80.0, -30.0, 80.0, 30.0)), pattern_paint("Checks"), vec![]);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "Banded".into(), art: Arc::new(band) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("Banded", Arc::new(band)));
     let banded = instance(&mut d, "Banded", Affine::translate((100.0, 50.0)));
     let envelope = arc_envelope(&mut d, vec![banded], true);
     edit_draws_as_new(with_art(d, vec![envelope]), |d| {
@@ -957,7 +957,7 @@ fn pattern_tiles_draw_edits_to_what_their_art_shows() {
     let doc = |pattern: &str, effects: Vec<vectorcraft_doc::Effect>| {
         let mut d = Document::new(200.0, 100.0);
         let art = symbol_art(&mut d);
-        d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+        d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
         let shown = Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "S".into(), xf: Affine::translate((10.0, 10.0)) });
         d.patterns.push(tile("Stamps", shown));
         d.patterns.push(checks(Color::rgb(1.0, 0.0, 0.0)));
@@ -1008,10 +1008,10 @@ fn rasters_draw_symbol_brush_and_image_edits() {
     // A group of an instance of symbol `A`, whose art shows symbol `S`, and a green square.
     let mut d = Document::new(200.0, 100.0);
     let art = symbol_art(&mut d);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
     let shown = Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "S".into(), xf: Affine::IDENTITY });
     let a = Node::group(d.alloc_id(), vec![Arc::new(shown)]);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "A".into(), art: Arc::new(a) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("A", Arc::new(a)));
     let instance = Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "A".into(), xf: Affine::translate((50.0, 50.0)) });
     let green = vectorcraft_doc::Appearance::basic(Paint::solid(Color::rgb(0.0, 0.8, 0.0)), Paint::None, 0.0);
     let square = Node::path(d.alloc_id(), rectangle(Rect::new(120.0, 30.0, 160.0, 70.0)), green);
@@ -1170,7 +1170,7 @@ fn proof_doc() -> Document {
     let spot = filled(&mut d, rectangle(Rect::new(110.0, 10.0, 150.0, 50.0)), spot, vec![blur]);
     let yellow = filled(&mut d, rectangle(Rect::new(-10.0, -10.0, 10.0, 10.0)), Paint::solid(Color::cmyk(0.0, 0.0, 1.0, 0.0)), vec![]);
     let art = Node::group(d.alloc_id(), vec![Arc::new(yellow)]);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
     let instance = Node::new(d.alloc_id(), NodeKind::SymbolInstance { symbol: "S".into(), xf: Affine::translate((175.0, 75.0)) });
     with_art(d, vec![cyan, circle, white, spot, instance])
 }
@@ -1330,7 +1330,7 @@ fn symbol_instances_draw_as_groups_of_their_placed_art() {
     let circle = vectorcraft_geom::shapes::ellipse(Rect::new(-6.0, -6.0, 6.0, 6.0));
     let ap = vectorcraft_doc::Appearance::basic(Paint::solid(Color::rgb(1.0, 0.8, 0.0)), Paint::solid(Color::BLACK), 1.0);
     let circle = Node::path(d.alloc_id(), circle, ap);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "U".into(), art: Arc::new(circle) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("U", Arc::new(circle)));
     let id = d.alloc_id();
     d.insert(Some(l), usize::MAX, Node::new(id, NodeKind::SymbolInstance { symbol: "U".into(), xf: Affine::translate((175.0, 25.0)) })).unwrap();
     // `groups` holds the same art in place of the instances: groups, and the circle as a path.
@@ -1374,7 +1374,7 @@ fn inline_graphics_keep_their_placed_art_between_frames() {
     use vectorcraft_doc::text::{CharStyle, InlineArt, TextObject, TextRun};
     let mut d = Document::new(200.0, 100.0);
     let art = symbol_art(&mut d);
-    d.symbols.push(vectorcraft_doc::Symbol { name: "S".into(), art: Arc::new(art) });
+    d.symbols.push(vectorcraft_doc::Symbol::new("S", Arc::new(art)));
     let style = CharStyle { size: 24.0, ..Default::default() };
     let mut t = TextObject::point(vectorcraft_geom::Point::new(10.0, 50.0), "A", style.clone());
     t.runs.push(TextRun::inline(InlineArt::new("S"), style.clone()));

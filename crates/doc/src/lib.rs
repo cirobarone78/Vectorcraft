@@ -533,6 +533,17 @@ impl GraphicStyle {
 pub struct Symbol {
     pub name: String,
     pub art: Arc<Node>,
+    /// Dynamic symbols keep per-instance overrides in Illustrator; VectorCraft stores the flag so
+    /// Symbol Options and agents can set it. Overrides and Global Edit are still ahead.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dynamic: bool,
+}
+
+impl Symbol {
+    /// A static symbol (the default for New Symbol and for existing files without the field).
+    pub fn new(name: impl Into<String>, art: Arc<Node>) -> Self {
+        Self { name: name.into(), art, dynamic: false }
+    }
 }
 
 /// Encoded image bytes (PNG/JPEG/WebP…) shared by image objects.
@@ -1604,7 +1615,7 @@ mod tests {
     fn art_on_artboard_measures_a_symbol_instance_by_its_art() {
         let mut d = Document::new(612.0, 792.0);
         let art = Node::path(d.alloc_id(), shapes::rectangle(Rect::new(0.0, 0.0, 10.0, 10.0)), Appearance::default_art());
-        d.symbols.push(Symbol { name: "Box".into(), art: Arc::new(art) });
+        d.symbols.push(Symbol::new("Box", Arc::new(art)));
         let (layer, id) = (d.layers[0].id, d.alloc_id());
         d.insert(Some(layer), 0, Node::new(id, NodeKind::SymbolInstance { symbol: "Box".into(), xf: Affine::translate((2.0, 2.0)) })).unwrap();
         // The art, (2, 2) to (12, 12), lies inside; the 20 × 20 square, (-8, -8) to (12, 12), doesn't.

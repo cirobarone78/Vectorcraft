@@ -95,13 +95,13 @@ pub fn specs() -> Vec<CommandSpec> {
             brush_freehand
         ),
         // ----- symbols -----
-        cmd!(query "symbol.list", "Symbols", [], None, "{} → {symbols: [{name, instances, size: [w,h]}], current}", has_doc, symbol_list),
+        cmd!(query "symbol.list", "Symbols", [], None, "{} → {symbols: [{name, instances, size: [w,h], dynamic}], current}", has_doc, symbol_list),
         cmd!(
             "symbol.new",
             "New Symbol…",
             [],
             None,
-            "{name?, ids?|id?} make a symbol from the selection and replace it with an instance → {name, id}",
+            "{name?, dynamic?: false, ids?|id?} make a symbol from the selection and replace it with an instance (dynamic: Symbol Options' Dynamic Symbol; overrides still ahead) → {name, id, dynamic}",
             has_selection,
             symbol_new
         ),
@@ -553,7 +553,7 @@ fn symbol_list(s: &mut Session, _: &Value) -> Result<Value> {
         .iter()
         .map(|sym| {
             let (w, h) = natural_size(d, &sym.name);
-            json!({"name": sym.name, "instances": instances_of(d, Some(&sym.name)).len(), "size": [w, h]})
+            json!({"name": sym.name, "instances": instances_of(d, Some(&sym.name)).len(), "size": [w, h], "dynamic": sym.dynamic})
         })
         .collect();
     Ok(json!({ "symbols": list, "current": current_symbol(d).or_else(|| symbol_names(d).into_iter().next()) }))
@@ -580,16 +580,17 @@ fn symbol_new(s: &mut Session, p: &Value) -> Result<Value> {
     let art = selection_art(s, p)?.ok_or_else(|| EngineError::Other("nothing selected".into()))?;
     let (art, size, c) = normalize(art)?;
     let name = s.doc()?.doc.unique_symbol_name(str_param(p, "name").filter(|n| !n.trim().is_empty()).unwrap_or("New Symbol"));
+    let dynamic = bool_or(p, "dynamic", false);
     let id = s.edit("New Symbol", |d, sel| {
         let art = d.reid(&art);
-        d.symbols.push(Symbol { name: name.clone(), art: Arc::new(art) });
+        d.symbols.push(Symbol { name: name.clone(), art: Arc::new(art), dynamic });
         set_natural_size(d, &name, Some(size));
         d.unknown.insert(CURRENT_SYMBOL.into(), json!(name));
         let id = replace_with_instance(d, &ids, &name, place_xf(c, size))?;
         sel.set([id]);
         Ok(id)
     })?;
-    Ok(json!({ "name": name, "id": id.0 }))
+    Ok(json!({ "name": name, "id": id.0, "dynamic": dynamic }))
 }
 
 fn resolve_symbol(d: &Document, p: &Value, cmd: &str) -> Result<String> {
@@ -760,11 +761,11 @@ fn symbol_duplicate(s: &mut Session, p: &Value) -> Result<Value> {
     let size = natural_size(d, &name);
     s.edit("Duplicate Symbol", |d, _| {
         let art = d.reid(&sym.art);
-        d.symbols.push(Symbol { name: new.clone(), art: Arc::new(art) });
+        d.symbols.push(Symbol { name: new.clone(), art: Arc::new(art), dynamic: sym.dynamic });
         set_natural_size(d, &new, Some(size));
         Ok(())
     })?;
-    Ok(json!({ "name": new }))
+    Ok(json!({ "name": new, "dynamic": sym.dynamic }))
 }
 
 fn symbol_replace(s: &mut Session, p: &Value) -> Result<Value> {
