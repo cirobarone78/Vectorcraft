@@ -1612,6 +1612,7 @@
 	Hide Print Tiling	Nyomtatási csempézés elrejtése
 	Hide Rulers	Vonalzók elrejtése
 	Hide Slices	Szeletek elrejtése
+	Hide Template	Sablon elrejtése
 	Hide Text Threads	Szövegláncok elrejtése
 	Hide Thumbnail	Bélyegkép elrejtése
 	Hide Thumbnails	Bélyegképek elrejtése
@@ -3338,6 +3339,7 @@
 	Show Slices	Szeletek megjelenítése
 	Show Swatch Bounds	Színminta határainak megjelenítése
 	Show Swatch Kinds	Színmintafajták megjelenítése
+	Show Template	Sablon megjelenítése
 	Show Text Threads	Szövegláncok megjelenítése
 	Show The Home Screen When No Documents Are Open	Kezdőképernyő megjelenítése, ha nincs nyitott dokumentum
 	Show Thumbnail	Bélyegkép megjelenítése
