@@ -108,6 +108,25 @@ fn white_background_hides_the_grid_and_paper_tints_the_artboard() {
     assert!(all.iter().any(|s| matches!(s, egui::Shape::Path(p) if p.fill == paper)), "the artboard shows the paper colour");
 }
 
+/// The strong border follows the active artboard. A later artboard in the list stays subdued.
+#[test]
+fn the_active_artboard_keeps_the_strong_border() {
+    let mut app = app();
+    app.run("artboard.new", json!({"x": 400, "y": 0, "width": 80, "height": 40})).unwrap();
+    let width = |q: &[egui::Pos2]| q[2].x - q[0].x;
+    let borders = |app: &mut VectorcraftApp| {
+        let shapes = frame(app).0;
+        (outlines(&shapes, egui::Color32::from_gray(0)), outlines(&shapes, egui::Color32::from_gray(120)))
+    };
+    let (strong, dim) = borders(&mut app);
+    assert_eq!((strong.len(), dim.len()), (1, 1));
+    assert!(width(&strong[0]) > width(&dim[0]) * 1.5, "the first artboard is the strong one");
+    app.view_mut().unwrap().artboard = 1;
+    let (strong, dim) = borders(&mut app);
+    assert_eq!((strong.len(), dim.len()), (1, 1));
+    assert!(width(&dim[0]) > width(&strong[0]) * 1.5, "the second artboard is the strong one");
+}
+
 /// An artboard's name sits above the artboard's own top-left corner, also when a rotated view
 /// turns that corner away from the corner of its box on screen (#1095).
 #[test]

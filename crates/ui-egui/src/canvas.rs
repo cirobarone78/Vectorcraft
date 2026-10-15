@@ -377,24 +377,31 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     if app.ui.view.pixel_preview && v.zoom >= PIXEL_GRID_ZOOM && app.session.prefs.show_pixel_grid {
         grid(&painter, &xf, 1.0, 1, LineLook { color: PIXEL_GRID, dots: false });
     }
-    // Artboard edges and names. The Artboard tool labels its active artboard itself (following
-    // a move or resize): that one isn't named twice.
-    let active_ab = 0;
+    // Artboard edges and names. The strong border is the active artboard (the navigator's and
+    // the Artboards panel's), drawn after the others so one later in the list cannot cover it.
+    // The Artboard tool labels its active artboard itself (following a move or resize): that
+    // one isn't named twice.
+    let active_ab = v.artboard.min(doc.artboards.len().saturating_sub(1));
     let artboard_tool = app.session.tool_id() == "artboard";
     let tool_labelled = artboard_tool.then(|| app.session.tool_options()["active"].as_u64()).flatten();
+    let editing_name = ui.data(|d| d.get_temp::<ArtboardNameEdit>(name_edit_id()).map(|e| e.index));
     for (i, ab) in doc.artboards.iter().enumerate() {
-        let c = if i == active_ab { Color32::from_gray(0) } else { Color32::from_gray(120) };
-        painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(if i == active_ab { 1.0 } else { 0.6 }, c)));
+        if i != active_ab {
+            painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(0.6, Color32::from_gray(120))));
+        }
         // The bleed (Document Setup) as a red outline around the artboard.
         if doc.setup.has_bleed() {
             painter.add(Shape::closed_line(xf.quad(doc.setup.bleed_rect(ab.rect)), Stroke::new(1.0, t.bleed)));
         }
-        if (artboard_tool || doc.artboards.len() > 1) && tool_labelled != u64::try_from(i).ok() {
+        if editing_name != Some(i) && (artboard_tool || doc.artboards.len() > 1) && tool_labelled != u64::try_from(i).ok() {
             // At the artboard's own top-left corner, which a rotated view turns away from its
             // bounding box's (#1095).
             let corner = xf.to_screen(Point::new(ab.rect.x0, ab.rect.y0));
             artboard_label(&painter, corner, (ab.rect.width() * xf.zoom) as f32, &format!("{:02} - {}", i + 1, ab.name), t.text_dim);
         }
+    }
+    if let Some(ab) = doc.artboards.get(active_ab) {
+        painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(1.0, Color32::from_gray(0))));
     }
     if app.ui.view.guides {
         let look = LineLook::guides(&app.session.prefs, &t);
@@ -465,6 +472,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     if app.ui.screen_mode < 3 {
         crate::free_transform::show(app, ui, xf.rect);
     }
+    artboard_name_editor(app, ui, &xf);
     // Cursor.
     if resp.hovered() {
         let m = ui.input(|i| i.modifiers);
@@ -610,23 +618,29 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
     {
         ui.ctx().memory_mut(|mem| mem.stop_text_input());
         app.ui.flyout = None;
-        let d = if zoom_mode {
-            if animated_zoom(&app.session.prefs) { Drag::ZoomScrub { start: p, held: 0.0, moved: false } } else { Drag::ZoomBox { start: p } }
-        } else if pan_mode {
-            Drag::Pan { start: p, center: v.center, middle: false }
-        } else if tool == "rotateView" {
-            let c = rect.center();
-            Drag::RotateView { start_angle: (p.y - c.y).atan2(p.x - c.x) as f64, start_rot: v.rotation }
+        // The artboard's name sits above its corner. A press there renames on a double-click
+        // and does not start a tool gesture (a fitted artboard, a new one, Artboard Options).
+        if let Some(i) = artboard_name_at(app, ui, &xf, p) {
+            ui.data_mut(|dd| dd.insert_temp(name_press_id(), i));
         } else {
-            // Cmd with another tool drags with the selection tool used last (the session lends it).
-            let ev = PointerEvent { kind: PointerKind::Down, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, true) };
-            dispatch(app, &ev, view);
-            Drag::Tool
-        };
-        ui.data_mut(|dd| {
-            dd.insert_temp(drag_id(), d);
-            dd.insert_temp(drag_pos_id(), p);
-        });
+            let d = if zoom_mode {
+                if animated_zoom(&app.session.prefs) { Drag::ZoomScrub { start: p, held: 0.0, moved: false } } else { Drag::ZoomBox { start: p } }
+            } else if pan_mode {
+                Drag::Pan { start: p, center: v.center, middle: false }
+            } else if tool == "rotateView" {
+                let c = rect.center();
+                Drag::RotateView { start_angle: (p.y - c.y).atan2(p.x - c.x) as f64, start_rot: v.rotation }
+            } else {
+                // Cmd with another tool drags with the selection tool used last (the session lends it).
+                let ev = PointerEvent { kind: PointerKind::Down, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, true) };
+                dispatch(app, &ev, view);
+                Drag::Tool
+            };
+            ui.data_mut(|dd| {
+                dd.insert_temp(drag_id(), d);
+                dd.insert_temp(drag_pos_id(), p);
+            });
+        }
     } else if drag.is_none()
         && resp.hovered()
         && pointer.button_pressed(egui::PointerButton::Middle)
@@ -722,6 +736,11 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
                 }
                 Drag::ZoomScrub { .. } => {}
                 Drag::Tool => {
+                    // The second click of a double-click: don't fit another artboard on this release.
+                    // DoubleClick, just below, fits once and drops the artboards that overlap it.
+                    if resp.double_clicked() && app.session.tool_id() == "artboard" {
+                        app.session.set_tool_option("suppressFitClick", &json!(true));
+                    }
                     let ev = PointerEvent { kind: PointerKind::Up, pos: xf.to_doc(p), mods: mods(m, space), pressure: pen_pressure(ui, false) };
                     dispatch(app, &ev, view);
                 }
@@ -735,17 +754,26 @@ fn handle_input(app: &mut VectorcraftApp, ui: &Ui, resp: &egui::Response, rect: 
         let ev = PointerEvent { kind: PointerKind::Move, pos: xf.to_doc(p), mods: mods(m, space), pressure: 1.0 };
         dispatch(app, &ev, view);
     }
+    if pointer.primary_released()
+        && let Some(i) = ui.data_mut(|d| d.remove_temp::<usize>(name_press_id()))
+    {
+        select_named_artboard(app, i);
+    }
     if resp.double_clicked()
         && let Some(p) = at
     {
-        let ev = PointerEvent { kind: PointerKind::DoubleClick, pos: xf.to_doc(p), mods: mods(m, space), pressure: 1.0 };
-        let before = app.session.tool_id().to_string();
-        dispatch(app, &ev, view);
-        // A double-click on type switched a selection tool to the Type tool: the caret goes where
-        // the type was clicked, so typing edits it at once.
-        if before != "type" && app.session.tool_id() == "type" {
-            for kind in [PointerKind::Down, PointerKind::Up] {
-                dispatch(app, &PointerEvent { kind, ..ev }, view);
+        if let Some(i) = artboard_name_at(app, ui, &xf, p) {
+            begin_artboard_name_edit(ui, app, i);
+        } else {
+            let ev = PointerEvent { kind: PointerKind::DoubleClick, pos: xf.to_doc(p), mods: mods(m, space), pressure: 1.0 };
+            let before = app.session.tool_id().to_string();
+            dispatch(app, &ev, view);
+            // A double-click on type switched a selection tool to the Type tool: the caret goes where
+            // the type was clicked, so typing edits it at once.
+            if before != "type" && app.session.tool_id() == "type" {
+                for kind in [PointerKind::Down, PointerKind::Up] {
+                    dispatch(app, &PointerEvent { kind, ..ev }, view);
+                }
             }
         }
     }
@@ -1936,16 +1964,163 @@ fn ime_output(app: &mut VectorcraftApp, ctx: &egui::Context, xf: &Xf) {
 /// out rather than spilling over its neighbours.
 const MIN_LABELLED_ARTBOARD: f32 = 24.0;
 
-/// Artboard `name` above its top-left `corner` on screen, no wider than the artboard (`width` on
-/// screen): a longer name ends in "…", and an artboard too narrow shows none (#949).
-fn artboard_label(painter: &egui::Painter, corner: Pos2, width: f32, name: &str, color: Color32) {
+fn name_press_id() -> egui::Id {
+    egui::Id::new("canvas-artboard-name-press")
+}
+
+fn name_edit_id() -> egui::Id {
+    egui::Id::new("canvas-artboard-name-edit")
+}
+
+/// A name being typed above an artboard. `fresh`: this frame opened it, so a focus loss from the
+/// press that started it is not the user leaving the field.
+#[derive(Clone)]
+struct ArtboardNameEdit {
+    index: usize,
+    text: String,
+    fresh: bool,
+}
+
+/// The canvas label for `name`, laid out as [`artboard_label`] draws it.
+fn canvas_name_galley(painter: &egui::Painter, corner: Pos2, width: f32, name: &str, color: Color32) -> Option<(std::sync::Arc<egui::Galley>, Pos2)> {
     if !width.is_finite() || width < MIN_LABELLED_ARTBOARD {
-        return;
+        return None;
     }
     let mut job = egui::text::LayoutJob::simple_singleline(name.to_owned(), egui::FontId::proportional(11.0), color);
     job.wrap = egui::text::TextWrapping { max_width: width, max_rows: 1, break_anywhere: true, overflow_character: Some('…') };
     let galley = painter.layout_job(job);
-    painter.galley(corner - vec2(0.0, 4.0 + galley.size().y), galley, color);
+    let at = corner - vec2(0.0, 4.0 + galley.size().y);
+    Some((galley, at))
+}
+
+/// Artboard `name` above its top-left `corner` on screen, no wider than the artboard (`width` on
+/// screen): a longer name ends in "…", and an artboard too narrow shows none (#949).
+fn artboard_label(painter: &egui::Painter, corner: Pos2, width: f32, name: &str, color: Color32) {
+    if let Some((galley, at)) = canvas_name_galley(painter, corner, width, name, color) {
+        painter.galley(at, galley, color);
+    }
+}
+
+fn canvas_name_rect(painter: &egui::Painter, corner: Pos2, width: f32, name: &str) -> Option<egui::Rect> {
+    canvas_name_galley(painter, corner, width, name, Color32::WHITE).map(|(galley, at)| egui::Rect::from_min_size(at, galley.size()).expand(2.0))
+}
+
+/// Where the Artboard tool draws "01 - name" for its active artboard (see its overlay label).
+fn tool_name_rect(painter: &egui::Painter, xf: &Xf, rect: Rect, index: usize, name: &str) -> egui::Rect {
+    let z = xf.zoom.max(1e-9);
+    let anchor = Point::new(rect.x0 - 8.0 / z, rect.y0 - 4.0 / z);
+    let sp = xf.to_screen(anchor) + vec2(8.0, -14.0);
+    let galley = painter.layout(format!("{:02} - {name}", index + 1), egui::FontId::proportional(11.0), Color32::WHITE, f32::INFINITY);
+    egui::Rect::from_min_size(sp, galley.size()).expand(2.0)
+}
+
+/// The artboard whose on-canvas name contains `screen`, if that name is being drawn.
+fn artboard_name_at(app: &VectorcraftApp, ui: &Ui, xf: &Xf, screen: Pos2) -> Option<usize> {
+    let st = app.session.active()?;
+    let artboard_tool = app.session.tool_id() == "artboard";
+    if !artboard_tool && st.doc.artboards.len() <= 1 {
+        return None;
+    }
+    let tool_labelled = artboard_tool.then(|| app.session.tool_options()["active"].as_u64()).flatten();
+    let painter = ui.painter();
+    let mut hit = None;
+    for (i, ab) in st.doc.artboards.iter().enumerate() {
+        if tool_labelled == u64::try_from(i).ok() {
+            continue;
+        }
+        let corner = xf.to_screen(Point::new(ab.rect.x0, ab.rect.y0));
+        let width = (ab.rect.width() * xf.zoom) as f32;
+        let text = format!("{:02} - {}", i + 1, ab.name);
+        if canvas_name_rect(painter, corner, width, &text).is_some_and(|r| r.contains(screen)) {
+            hit = Some(i);
+        }
+    }
+    if let Some(i) = tool_labelled.and_then(|i| usize::try_from(i).ok())
+        && let Some(ab) = st.doc.artboards.get(i)
+        && tool_name_rect(painter, xf, ab.rect, i, &ab.name).contains(screen)
+    {
+        return Some(i);
+    }
+    hit
+}
+
+fn select_named_artboard(app: &mut VectorcraftApp, index: usize) {
+    let n = app.session.active().map(|st| st.doc.artboards.len()).unwrap_or(0);
+    if index >= n {
+        return;
+    }
+    if let Some(v) = app.view_mut() {
+        v.artboard = index;
+    }
+    if app.session.tool_id() == "artboard" {
+        app.session.set_tool_option("active", &json!(index));
+    }
+}
+
+fn begin_artboard_name_edit(ui: &Ui, app: &VectorcraftApp, index: usize) {
+    let Some(name) = app.session.active().and_then(|st| st.doc.artboards.get(index).map(|a| a.name.clone())) else { return };
+    ui.data_mut(|d| d.insert_temp(name_edit_id(), ArtboardNameEdit { index, text: name, fresh: true }));
+}
+
+fn commit_artboard_name(app: &mut VectorcraftApp, index: usize, text: &str) {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return;
+    }
+    let current = app.session.active().and_then(|st| st.doc.artboards.get(index).map(|a| a.name.clone()));
+    if current.as_deref() == Some(trimmed) {
+        return;
+    }
+    // A refusal is reported by the command; the label just closes.
+    app.run("artboard.setProps", json!({ "index": index, "name": trimmed })).ok();
+}
+
+/// The text field over an artboard name a double-click opened.
+fn artboard_name_editor(app: &mut VectorcraftApp, ui: &mut Ui, xf: &Xf) {
+    let Some(mut edit) = ui.data(|d| d.get_temp::<ArtboardNameEdit>(name_edit_id())) else { return };
+    let alive = app.session.active().is_some_and(|st| edit.index < st.doc.artboards.len());
+    if !alive {
+        ui.data_mut(|d| d.remove::<ArtboardNameEdit>(name_edit_id()));
+        return;
+    }
+    let Some(rect) = artboard_name_field_rect(app, ui, xf, edit.index) else {
+        ui.data_mut(|d| d.remove::<ArtboardNameEdit>(name_edit_id()));
+        return;
+    };
+    let fresh = edit.fresh;
+    edit.fresh = false;
+    let te = ui.put(rect, egui::TextEdit::singleline(&mut edit.text).id(name_edit_id().with("field")).font(egui::FontId::proportional(11.0)));
+    if fresh || (!te.has_focus() && !te.lost_focus()) {
+        te.request_focus();
+    }
+    let done = !fresh && te.lost_focus();
+    let escape = ui.input(|i| i.key_pressed(egui::Key::Escape));
+    let (index, text) = (edit.index, edit.text.clone());
+    if done {
+        ui.data_mut(|d| d.remove::<ArtboardNameEdit>(name_edit_id()));
+        if !escape {
+            commit_artboard_name(app, index, &text);
+        }
+    } else {
+        ui.data_mut(|d| d.insert_temp(name_edit_id(), edit));
+    }
+}
+
+/// Where the rename field sits: the name label's rectangle, at least wide enough to type in.
+fn artboard_name_field_rect(app: &VectorcraftApp, ui: &Ui, xf: &Xf, index: usize) -> Option<egui::Rect> {
+    let st = app.session.active()?;
+    let ab = st.doc.artboards.get(index)?;
+    let artboard_tool = app.session.tool_id() == "artboard";
+    let tool_labelled = artboard_tool.then(|| app.session.tool_options()["active"].as_u64()).flatten();
+    let painter = ui.painter();
+    let rect = if tool_labelled == u64::try_from(index).ok() {
+        tool_name_rect(painter, xf, ab.rect, index, &ab.name)
+    } else {
+        let corner = xf.to_screen(Point::new(ab.rect.x0, ab.rect.y0));
+        let width = (ab.rect.width() * xf.zoom) as f32;
+        canvas_name_rect(painter, corner, width, &format!("{:02} - {}", index + 1, ab.name))?
+    };
+    Some(egui::Rect::from_min_size(rect.min, vec2(rect.width().max(80.0), rect.height().max(16.0))))
 }
 
 /// Is overlay label `text` the Artboard tool's "01 - <artboard name>"? It holds a name, so it is
@@ -2528,6 +2703,45 @@ mod tests {
     fn artboard_labels_name_the_artboard() {
         assert!(names_an_artboard("01 - Layers") && names_an_artboard("12 - Artboard 12 - copy"));
         assert!(!names_an_artboard("anchor") && !names_an_artboard("1 - x") && !names_an_artboard("Off the mesh - move closer"));
+    }
+
+    /// Double-clicking the name drawn above an artboard edits that name and does not fit a new
+    /// artboard or open Artboard Options.
+    #[test]
+    fn double_clicking_an_artboard_name_edits_it() {
+        let mut app = VectorcraftApp::new(Session::new(), Default::default());
+        app.session.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+        app.session.execute("artboard.new", &json!({"x": 500, "y": 0, "width": 100, "height": 80, "name": "Far"})).unwrap();
+        app.session.execute("shape.rectangle", &json!({"x": 40, "y": 40, "width": 30, "height": 20})).unwrap();
+        app.select_tool("artboard");
+        let ctx = egui::Context::default();
+        frame(&mut app, &ctx, vec![]);
+        let rect = app.canvas_rect.unwrap();
+        let xf = Xf::new(rect, app.view().unwrap());
+        let mut target = None;
+        let _ =
+            ctx.run_ui(egui::RawInput { screen_rect: Some(egui::Rect::from_min_size(Pos2::ZERO, vec2(800.0, 600.0))), ..Default::default() }, |ui| {
+                let ab = &app.session.active().unwrap().doc.artboards[0];
+                target = Some(tool_name_rect(ui.painter(), &xf, ab.rect, 0, &ab.name).center());
+            });
+        let at = target.unwrap();
+        assert!(rect.contains(at), "the name is in the working area, at {at:?} canvas {rect:?}");
+        let before = app.session.active().unwrap().doc.artboards.len();
+        let button = |pressed| egui::Event::PointerButton { pos: at, button: egui::PointerButton::Primary, pressed, modifiers: Default::default() };
+        let click = |app: &mut VectorcraftApp| {
+            frame(app, &ctx, vec![egui::Event::PointerMoved(at)]);
+            frame(app, &ctx, vec![button(true)]);
+            frame(app, &ctx, vec![button(false)]);
+        };
+        click(&mut app);
+        click(&mut app);
+        assert!(ctx.data(|d| d.get_temp::<ArtboardNameEdit>(name_edit_id()).is_some()), "the name is being edited");
+        assert_eq!(app.session.active().unwrap().doc.artboards.len(), before, "clicking the name does not fit an artboard");
+        assert!(app.ui.dialog.is_none(), "Artboard Options stays closed");
+        commit_artboard_name(&mut app, 0, "Poster");
+        assert_eq!(app.session.active().unwrap().doc.artboards[0].name, "Poster");
+        commit_artboard_name(&mut app, 0, "   ");
+        assert_eq!(app.session.active().unwrap().doc.artboards[0].name, "Poster", "an empty name is left as it is");
     }
 
     /// #949: an artboard's name stays within the artboard's width on screen, ending in "…" when
