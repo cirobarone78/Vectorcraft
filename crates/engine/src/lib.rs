@@ -1888,6 +1888,8 @@ mod tests_overprint;
 #[cfg(test)]
 mod tests_package;
 #[cfg(test)]
+mod tests_page;
+#[cfg(test)]
 mod tests_paintproxy;
 #[cfg(test)]
 mod tests_panelcmds;

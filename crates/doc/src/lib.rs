@@ -367,6 +367,16 @@ pub struct Artboard {
     pub show_center_mark: bool,
     #[serde(default)]
     pub show_cross_hairs: bool,
+    /// Page this artboard belongs to (0-indexed page id).
+    #[serde(default, skip_serializing_if = "skip::is_default")]
+    pub page: u32,
+}
+
+/// A Corel-style document page that can contain one or more artboards.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Page {
+    pub id: u32,
+    pub name: String,
 }
 
 /// Opacity-mask editing mode: `object`'s mask art lives on the temporary `layer` while editing.
@@ -563,6 +573,9 @@ pub struct Document {
     #[serde(default)]
     pub color_mode: ColorMode,
     pub artboards: Vec<Artboard>,
+    /// Corel-style document pages. Each page can contain one or more artboards.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub pages: Vec<Page>,
     /// Top-level layers, bottom first.
     pub layers: Vec<Arc<Node>>,
     // The document-wide resources below are [`Shared`]: an edit copies the document (copy-on-write)
@@ -727,7 +740,9 @@ impl Document {
                 rect: Rect::new(0.0, 0.0, width, height),
                 show_center_mark: false,
                 show_cross_hairs: false,
+                page: 0,
             }],
+            pages: vec![Page { id: 0, name: "Page 1".into() }],
             layers: vec![],
             swatches: swatches.into(),
             swatch_groups: swatch_groups.into(),
@@ -1388,6 +1403,18 @@ impl Document {
     }
     pub fn next_artboard_id(&self) -> u32 {
         free_id(self.artboards.iter().map(|a| a.id))
+    }
+    /// Return the list of pages, ensuring at least one page ("Page 1") exists.
+    pub fn pages(&self) -> Vec<Page> {
+        if self.pages.is_empty() { vec![Page { id: 0, name: "Page 1".into() }] } else { self.pages.clone() }
+    }
+    /// Artboards belonging to `page_id`.
+    pub fn artboards_for_page(&self, page_id: u32) -> Vec<(usize, &Artboard)> {
+        self.artboards.iter().enumerate().filter(|(_, a)| a.page == page_id).collect()
+    }
+    /// Next available page id.
+    pub fn next_page_id(&self) -> u32 {
+        self.pages.iter().map(|p| p.id).max().unwrap_or(0) + 1
     }
     pub fn pattern(&self, name: &str) -> Option<&PatternDef> {
         self.patterns.iter().find(|p| p.name == name)

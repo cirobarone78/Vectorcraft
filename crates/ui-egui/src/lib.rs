@@ -1308,6 +1308,9 @@ impl VectorcraftApp {
         }
         if self.ui.status_bar && self.ui.screen_mode < 3 {
             chrome::status_bar(self, ui);
+            if self.ui.page_bar {
+                chrome::page_bar(self, ui);
+            }
             chrome::hint_bar(self, ui);
         }
         if self.ui.toolbar && self.ui.screen_mode < 3 {

@@ -47,6 +47,7 @@ mod object;
 mod opacitymask;
 mod overprint;
 mod package;
+pub(crate) mod page;
 mod paint;
 mod panelcmds;
 pub mod params;
@@ -203,6 +204,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(fileio::specs());
         v.extend(create::specs());
         v.extend(object::specs());
+        v.extend(page::specs());
         v.extend(path::specs());
         v.extend(select::specs());
         v.extend(wand::specs());

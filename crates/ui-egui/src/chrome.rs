@@ -603,6 +603,179 @@ pub fn status_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
         });
 }
 
+pub fn page_bar(app: &mut VectorcraftApp, ui: &mut Ui) {
+    let t = Tokens::get(ui.ctx());
+    let Some(st) = app.session.active() else { return };
+    let doc = st.doc.clone();
+    let pages = doc.pages();
+    let npages = pages.len();
+    if npages == 0 {
+        return;
+    }
+
+    egui::Panel::bottom("page_bar")
+        .exact_size(26.0)
+        .frame(egui::Frame::NONE.fill(t.panel).inner_margin(egui::Margin::symmetric(8, 0)).stroke(Stroke::new(1.0, t.border)))
+        .show(ui, |ui| {
+            ui.horizontal_centered(|ui| {
+                let cur = app.view().map_or(0, |v| v.page).min(npages.saturating_sub(1));
+
+                // 1. CorelDRAW Page Navigator controls: |< < Page X of Y > >| +
+                let mut go_page = None;
+                for (icon, to) in [("chevrons-left", "first"), ("chevron-left", "previous")] {
+                    if widgets::icon_button_enabled(ui, icon, "", false, cur > 0, 18.0).clicked() {
+                        go_page = Some(to.to_string());
+                    }
+                }
+
+                // Page quick picker
+                let cur_label = format!("Page {} of {}", cur + 1, npages);
+                egui::ComboBox::from_id_salt("page-quick-picker").selected_text(egui::RichText::new(&cur_label).size(11.5)).width(105.0).show_ui(
+                    ui,
+                    |ui| {
+                        for (i, p) in pages.iter().enumerate() {
+                            let ab_count = doc.artboards_for_page(p.id).len();
+                            let label = format!("{}: {} ({} artboards)", i + 1, p.name, ab_count);
+                            if ui.selectable_label(i == cur, label).clicked() {
+                                go_page = Some(i.to_string());
+                            }
+                        }
+                    },
+                );
+
+                for (icon, to) in [("chevron-right", "next"), ("chevrons-right", "last")] {
+                    if widgets::icon_button_enabled(ui, icon, "", false, cur + 1 < npages, 18.0).clicked() {
+                        go_page = Some(to.to_string());
+                    }
+                }
+
+                if widgets::icon_button_enabled(ui, "dc-new-item", "New Page", false, true, 18.0).clicked()
+                    && let Ok(res) = app.run("page.new", json!({}))
+                    && let Some(idx) = res.get("index").and_then(serde_json::Value::as_u64)
+                {
+                    go_page = Some(idx.to_string());
+                }
+
+                if let Some(to) = go_page {
+                    app.run("view.goToPage", json!({ "index": to })).ok();
+                }
+
+                ui.separator();
+
+                // 2. CorelDRAW Page Tabs
+                let mut action_cmd: Option<(&'static str, serde_json::Value)> = None;
+                egui::ScrollArea::horizontal().id_salt("page-tabs-scroll").max_width((ui.available_width() - 170.0).max(50.0)).show(ui, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.spacing_mut().item_spacing.x = 4.0;
+                        for (i, page) in pages.iter().enumerate() {
+                            let is_active = i == cur;
+                            let abs = doc.artboards_for_page(page.id);
+                            let ab_count = abs.len();
+
+                            let tab_text = if ab_count > 1 { format!("{} ({})", page.name, ab_count) } else { page.name.clone() };
+
+                            let btn_fill = if is_active { t.row_selected } else { egui::Color32::TRANSPARENT };
+                            let btn_stroke = if is_active { Stroke::new(1.0, t.accent) } else { Stroke::new(1.0, t.border) };
+
+                            let text_color = if is_active { t.text_strong } else { t.text };
+                            let rich = egui::RichText::new(tab_text).size(11.0).color(text_color);
+
+                            let btn = egui::Button::new(rich)
+                                .fill(btn_fill)
+                                .stroke(btn_stroke)
+                                .corner_radius(CornerRadius::same(3))
+                                .min_size(vec2(0.0, 18.0));
+
+                            let resp = ui.add(btn);
+                            if resp.clicked() && !is_active {
+                                action_cmd = Some(("view.goToPage", json!({ "index": i })));
+                            }
+
+                            resp.context_menu(|ui| {
+                                ui.set_min_width(140.0);
+                                ui.label(egui::RichText::new(&page.name).strong());
+                                ui.separator();
+                                if ui.button(tl!("Insert Page Before")).clicked() {
+                                    action_cmd = Some(("page.new", json!({ "before": i })));
+                                    ui.close();
+                                }
+                                if ui.button(tl!("Insert Page After")).clicked() {
+                                    action_cmd = Some(("page.new", json!({ "before": i + 1 })));
+                                    ui.close();
+                                }
+                                if ui.button(tl!("Duplicate Page")).clicked() {
+                                    action_cmd = Some(("page.duplicate", json!({ "index": i })));
+                                    ui.close();
+                                }
+                                ui.separator();
+                                if ui.button(tl!("Add Artboard to this Page")).clicked() {
+                                    action_cmd = Some(("page.addArtboard", json!({ "page": page.id })));
+                                    ui.close();
+                                }
+                                if npages > 1 && ui.button(tl!("Delete Page")).clicked() {
+                                    action_cmd = Some(("page.delete", json!({ "index": i })));
+                                    ui.close();
+                                }
+                            });
+                        }
+
+                        // Quick '+' button at the end of tabs
+                        let plus_btn = egui::Button::new(egui::RichText::new("+").size(12.0).color(t.text_dim))
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(Stroke::new(1.0, t.border))
+                            .corner_radius(CornerRadius::same(3))
+                            .min_size(vec2(18.0, 18.0));
+                        if ui.add(plus_btn).on_hover_text("Add Page").clicked() {
+                            action_cmd = Some(("page.new", json!({})));
+                        }
+                    });
+                });
+
+                if let Some((cmd, val)) = action_cmd {
+                    app.run(cmd, val).ok();
+                }
+
+                // 3. Right side: Single page view toggle, Artboard info, and + Artboard button on current page
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let cur_page_id = pages.get(cur).map(|p| p.id).unwrap_or(0);
+                    let abs_on_page = doc.artboards_for_page(cur_page_id);
+                    let n_abs = abs_on_page.len();
+
+                    let add_ab_btn = egui::Button::new(egui::RichText::new("+ Artboard").size(10.5))
+                        .fill(egui::Color32::TRANSPARENT)
+                        .stroke(Stroke::new(1.0, t.border))
+                        .corner_radius(CornerRadius::same(3))
+                        .min_size(vec2(0.0, 18.0));
+                    if ui.add(add_ab_btn).on_hover_text("Add another Artboard to this Page").clicked() {
+                        app.run("page.addArtboard", json!({ "page": cur_page_id })).ok();
+                    }
+
+                    let is_single = app.ui.single_page_view;
+                    let toggle_text = if is_single { "Single Page" } else { "All Pages" };
+                    let toggle_btn = egui::Button::new(egui::RichText::new(toggle_text).size(10.5))
+                        .fill(if is_single { t.row_selected } else { egui::Color32::TRANSPARENT })
+                        .stroke(Stroke::new(1.0, if is_single { t.accent } else { t.border }))
+                        .corner_radius(CornerRadius::same(3))
+                        .min_size(vec2(0.0, 18.0));
+                    if ui
+                        .add(toggle_btn)
+                        .on_hover_text(if is_single {
+                            "Single Page View (showing artboards on current page only). Click to show All Pages."
+                        } else {
+                            "All Pages View (showing all artboards across pages). Click to show Single Page only."
+                        })
+                        .clicked()
+                    {
+                        app.ui.single_page_view = !is_single;
+                    }
+
+                    let summary_text = if n_abs == 1 { "1 artboard".to_string() } else { format!("{n_abs} artboards") };
+                    ui.label(egui::RichText::new(summary_text).size(10.5).color(t.text_dim));
+                });
+            });
+        });
+}
+
 /// Contextual hint for the active tool: segments of (text, bold). Keys in bold segments are
 /// written as shortcuts are ("Alt+Click"); [`hint_segments`] names them for the platform.
 /// The hint of the Zoom tool with Performance › Animated Zoom on.

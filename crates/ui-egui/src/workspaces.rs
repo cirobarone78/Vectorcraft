@@ -41,6 +41,10 @@ pub struct Workspace {
     pub docking_icons: std::collections::BTreeSet<String>,
     /// Where the Tools panel floats (built-in workspaces: docked).
     pub toolbar_pos: Option<[f32; 2]>,
+    #[serde(default = "crate::state::yes")]
+    pub page_bar: bool,
+    #[serde(default)]
+    pub single_page_view: bool,
 }
 
 impl Default for Workspace {
@@ -140,6 +144,8 @@ pub fn capture(ui: &UiState, name: &str) -> Workspace {
         docking_hidden: ui.docking_hidden.clone(),
         docking_icons: ui.docking_icons.clone(),
         toolbar_pos: ui.toolbar_pos,
+        page_bar: ui.page_bar,
+        single_page_view: ui.single_page_view,
     }
 }
 
@@ -165,6 +171,8 @@ pub fn apply(ui: &mut UiState, w: &Workspace) {
         w.docking_icons.iter().filter(|id| crate::state::ICON_PANELS.iter().any(|entry| entry.0 == id.as_str())).take(64).cloned().collect();
     ui.toolbar_pos = w.toolbar_pos;
     FloatingPanels::sanitize(&mut ui.floating_panels, &mut ui.toolbar_pos);
+    ui.page_bar = w.page_bar;
+    ui.single_page_view = w.single_page_view;
     ui.flyout = None;
     ui.workspace = w.name.clone();
 }

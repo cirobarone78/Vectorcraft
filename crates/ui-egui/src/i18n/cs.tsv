@@ -671,6 +671,7 @@
 	Make Compound Path	Vytvořit složenou cestu
 	Release Compound Path	Uvolnit složenou cestu
 	Select All	Vybrat vše
+<<<<<<< HEAD
 	Collapse Panels to Icons	Sbalit panely na ikony
 	Collapse to Icons	Sbalit na ikony
 	Expand Panels	Rozbalit panely
@@ -4808,3 +4809,16 @@ mark-style	Japanese	Japonské
 	Softness	Měkkost
 	Ambient Light	Okolní světlo
 	Light behind the object	Světlo za objektem
+	New Page	Nová stránka
+	Delete Page	Smazat stránku
+	Rename Page	Přejmenovat stránku
+	Duplicate Page	Duplikovat stránku
+	Reorder Page	Přeuspořádat stránky
+	Add Artboard to Page	Přidat kreslicí plátno na stránku
+	Assign Artboard to Page	Přiřadit kreslicí plátno ke stránce
+	List Pages	Zobrazit seznam stránek
+	Go to Page	Přejít na stránku
+	Single Page View	Zobrazení jedné stránky
+	Insert Page Before	Vložit stránku před
+	Insert Page After	Vložit stránku za
+	Add Artboard to this Page	Přidat kreslicí plátno na tuto stránku

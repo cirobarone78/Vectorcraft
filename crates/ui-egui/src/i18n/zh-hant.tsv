@@ -3402,6 +3402,7 @@ imageTrace	Outline	輪廓
 	  — {n} characters from another font	  — {n} 個字符來自其他字體
 	[Normal Character Style]	[正常字元樣式]
 	[Normal Paragraph Style]	[正常段落樣式]
+<<<<<<< HEAD
 
 # About › Contributors / Models (credits.rs)
 	About	關於
@@ -3741,3 +3742,16 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	環境光
 	Light behind the object	光源位於物件後方
+	New Page	新增頁面
+	Delete Page	刪除頁面
+	Rename Page	重新命名頁面
+	Duplicate Page	複製頁面
+	Reorder Page	重新排列頁面
+	Add Artboard to Page	新增工作區域至頁面
+	Assign Artboard to Page	指派工作區域至頁面
+	List Pages	列出頁面
+	Go to Page	前往頁面
+	Single Page View	單一頁面檢視
+	Insert Page Before	在前方插入頁面
+	Insert Page After	在後方插入頁面
+	Add Artboard to this Page	新增工作區域至此頁面

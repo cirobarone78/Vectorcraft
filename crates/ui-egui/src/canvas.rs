@@ -202,10 +202,15 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     // simulated paper colour; a white Background Contents hides the grid).
     painter.rect_filled(rect, 0.0, t.pasteboard);
     if app.ui.view.artboards && !app.ui.view.outline {
+        let pages = doc.pages();
+        let cur_page_idx = app.view().map_or(0, |v| v.page).min(pages.len().saturating_sub(1));
+        let cur_page_id = pages.get(cur_page_idx).map(|p| p.id).unwrap_or(0);
+        let ab_matches_page = |ab: &vectorcraft_doc::Artboard| !app.ui.single_page_view || ab.page == cur_page_id;
+
         let setup = &doc.setup;
         let grid = (st.transparency_grid && setup.background == vectorcraft_doc::Background::Transparent).then(|| checker_texture(ui.ctx(), setup));
         let paper = if setup.simulate_paper { crate::panels::c32(&setup.paper()) } else { Color32::WHITE };
-        for ab in &doc.artboards {
+        for ab in doc.artboards.iter().filter(|ab| ab_matches_page(ab)) {
             let q = xf.quad(ab.rect);
             // Hard 2 pt drop shadow, right and bottom (measured: #4d4d4d then #565656 on #606060).
             let shift = |d: f32| q.iter().map(|p| *p + vec2(d, d)).collect::<Vec<_>>();
@@ -219,7 +224,12 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             }
         }
     } else if app.ui.view.outline {
-        for ab in &doc.artboards {
+        let pages = doc.pages();
+        let cur_page_idx = app.view().map_or(0, |v| v.page).min(pages.len().saturating_sub(1));
+        let cur_page_id = pages.get(cur_page_idx).map(|p| p.id).unwrap_or(0);
+        let ab_matches_page = |ab: &vectorcraft_doc::Artboard| !app.ui.single_page_view || ab.page == cur_page_id;
+
+        for ab in doc.artboards.iter().filter(|ab| ab_matches_page(ab)) {
             painter.add(Shape::convex_polygon(xf.quad(ab.rect), Color32::WHITE, Stroke::NONE));
         }
     }
@@ -379,10 +389,17 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
     }
     // Artboard edges and names. The Artboard tool labels its active artboard itself (following
     // a move or resize): that one isn't named twice.
+    let pages = doc.pages();
+    let cur_page_idx = app.view().map_or(0, |v| v.page).min(pages.len().saturating_sub(1));
+    let cur_page_id = pages.get(cur_page_idx).map(|p| p.id).unwrap_or(0);
+    let ab_matches_page = |ab: &vectorcraft_doc::Artboard| !app.ui.single_page_view || ab.page == cur_page_id;
     let active_ab = 0;
     let artboard_tool = app.session.tool_id() == "artboard";
     let tool_labelled = artboard_tool.then(|| app.session.tool_options()["active"].as_u64()).flatten();
     for (i, ab) in doc.artboards.iter().enumerate() {
+        if !ab_matches_page(ab) {
+            continue;
+        }
         let c = if i == active_ab { Color32::from_gray(0) } else { Color32::from_gray(120) };
         painter.add(Shape::closed_line(xf.quad(ab.rect), Stroke::new(if i == active_ab { 1.0 } else { 0.6 }, c)));
         // The bleed (Document Setup) as a red outline around the artboard.
@@ -390,10 +407,16 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
             painter.add(Shape::closed_line(xf.quad(doc.setup.bleed_rect(ab.rect)), Stroke::new(1.0, t.bleed)));
         }
         if (artboard_tool || doc.artboards.len() > 1) && tool_labelled != u64::try_from(i).ok() {
+            let page_str = if pages.len() > 1 {
+                let page_name = pages.iter().find(|p| p.id == ab.page).map(|p| p.name.as_str()).unwrap_or("Page");
+                format!(" ({})", page_name)
+            } else {
+                String::new()
+            };
             // At the artboard's own top-left corner, which a rotated view turns away from its
             // bounding box's (#1095).
             let corner = xf.to_screen(Point::new(ab.rect.x0, ab.rect.y0));
-            artboard_label(&painter, corner, (ab.rect.width() * xf.zoom) as f32, &format!("{:02} - {}", i + 1, ab.name), t.text_dim);
+            artboard_label(&painter, corner, (ab.rect.width() * xf.zoom) as f32, &format!("{:02} - {}{}", i + 1, ab.name, page_str), t.text_dim);
         }
     }
     if app.ui.view.guides {

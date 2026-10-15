@@ -347,12 +347,14 @@ fn read_with_reader_options(bytes: &[u8], opts: &ImportOptions, reader: &craft_p
         }
         x = right + opts.artboard_gap;
         clear = right.max(art_right) + opts.artboard_gap;
+        doc.pages.push(vectorcraft_doc::Page { id: i as u32, name: format!("Page {}", number + 1) });
         doc.artboards.push(Artboard {
             id: i as u32 + 1,
             name: format!("Artboard {}", i + 1),
             rect: ab,
             show_center_mark: false,
             show_cross_hairs: false,
+            page: i as u32,
         });
         let page_layer = |b: &mut Builder<'_>, art: Vec<Arc<Node>>, shown: bool| {
             let name = if shown { format!("Page {}", number + 1) } else { format!("Page {} (unsorted)", number + 1) };

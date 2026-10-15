@@ -21,11 +21,14 @@ pub struct View {
     /// Size show it.
     #[serde(default)]
     pub artboard: usize,
+    /// Active page index (Corel-class page pagination).
+    #[serde(default)]
+    pub page: usize,
 }
 
 impl Default for View {
     fn default() -> Self {
-        Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, rotation: 0.0, artboard: 0 }
+        Self { zoom: 1.0, center: Point::new(306.0, 396.0), fitted: false, rotation: 0.0, artboard: 0, page: 0 }
     }
 }
 
@@ -39,6 +42,7 @@ impl View {
                 fitted: true,
                 rotation: if v.rotation.is_finite() { v.rotation } else { 0.0 },
                 artboard: 0,
+                page: 0,
             },
             _ => Self::default(),
         }
@@ -303,6 +307,11 @@ pub struct UiState {
     #[serde(default)]
     pub toolbar_pos: Option<[f32; 2]>,
     pub status_bar: bool,
+    #[serde(default = "yes")]
+    pub page_bar: bool,
+    /// Single page view: display only artboards on the currently active page.
+    #[serde(default)]
+    pub single_page_view: bool,
     pub dock: bool,
     pub view: ViewFlags,
     pub dialog: Option<Dialog>,
@@ -686,6 +695,8 @@ impl Default for UiState {
             docking_generation: 0,
             toolbar_pos: None,
             status_bar: true,
+            page_bar: true,
+            single_page_view: false,
             dock: true,
             view: ViewFlags::default(),
             dialog: None,
@@ -734,7 +745,7 @@ impl Default for UiState {
     }
 }
 
-fn yes() -> bool {
+pub(crate) fn yes() -> bool {
     true
 }
 

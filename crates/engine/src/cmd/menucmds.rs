@@ -856,6 +856,7 @@ fn convert_to_artboards(s: &mut Session, _: &Value) -> Result<Value> {
                 rect: b,
                 show_center_mark: false,
                 show_cross_hairs: false,
+                page: 0,
             });
             converted.push(*id);
         }
