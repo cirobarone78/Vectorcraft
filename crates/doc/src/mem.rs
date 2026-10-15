@@ -251,6 +251,18 @@ fn node_bytes(n: &Node, other: Option<&Node>) -> usize {
         b += ALLOC + size_of::<NodeExtras>();
         b += boxed(&e.mask) + boxed(&e.graph) + boxed(&e.shaper) + boxed(&e.attrs) + boxed(&e.slice) + boxed(&e.perspective);
         b += e.trace.as_ref().map_or(0, |t| ALLOC + size_of::<Value>() + json_bytes(t));
+        b += boxed(&e.dimension);
+        if let Some(spec) = &e.dimension {
+            let o = &spec.options;
+            b += vec_bytes(&spec.points)
+                + o.font_family.capacity()
+                + o.font_style.capacity()
+                + o.line_type.capacity()
+                + o.extension_type.capacity()
+                + o.arrow.capacity()
+                + o.text_position.capacity()
+                + o.text_align.capacity();
+        }
     }
     b += match &n.kind {
         NodeKind::Path { path, live, .. } => path_bytes(path) + boxed(live),

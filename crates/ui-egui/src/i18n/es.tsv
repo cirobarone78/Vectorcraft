@@ -4749,3 +4749,46 @@ mark-style	Japanese	Japonesas
 	Softness	Suavidad
 	Ambient Light	Luz ambiental
 	Light behind the object	Luz detrás del objeto
+	Add Dimension	Añadir cota
+	Angular	Angular
+	Closed	Cerrada
+	Diameter	Diámetro
+	Dimension Lines	Líneas de cota
+	Dimension Options…	Opciones de cotas…
+	Dimension Selected Artwork	Acotar la ilustración seleccionada
+	Dimension Settings	Ajustes de cotas
+	Dimension Text	Texto de cota
+	Dimension Tool	Herramienta Cota
+	Dimension Tool Options	Opciones de la herramienta Cota
+	Dotted	Punteada
+	Edit Dimension	Editar cota
+	End	Final
+	Extension Lines	Líneas auxiliares
+	Font Family:	Familia de fuentes:
+	Font Size:	Tamaño de fuente:
+	Font Style:	Estilo de fuente:
+	Gap:	Separación:
+	Hide Extension Lines	Ocultar líneas auxiliares
+	Hide Units	Ocultar unidades
+	On Line	Sobre la línea
+	Overrun:	Prolongación:
+	Pick points, then place label; Esc cancels	Elija puntos y coloque la cota; Esc cancela
+	Position:	Posición:
+	Precision:	Precisión:
+	Scale (1:n):	Escala (1:n):
+	Start	Inicio
+	Tick	Trazo oblicuo
+	Units & Scale	Unidades y escala
+@msg	angular dimension needs two different ray directions	La cota angular requiere dos direcciones de rayo distintas
+@msg	dimension coordinates must be finite and within ±100000000	Las coordenadas de cota deben ser finitas y estar en ±100000000
+@msg	dimension needs {count} points	La cota requiere {count} puntos
+@msg	dimension points must be distinct	Los puntos de cota deben ser distintos
+@msg	invalid dimension font name	Nombre de fuente de cota no válido
+@msg	invalid dimension transform	Transformación de cota no válida
+@msg	invalid {name}	{name} no válido
+@msg	missing dimension point	Falta un punto de cota
+@msg	missing first point	Falta el primer punto
+@msg	missing second point	Falta el segundo punto
+@msg	missing second ray	Falta el segundo rayo
+@msg	precision must be 0..6	La precisión debe ser 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} debe ser finito y estar en {min}..{max}

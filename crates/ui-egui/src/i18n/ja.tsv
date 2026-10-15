@@ -4374,3 +4374,47 @@ lighting	Light	ライト
 	Softness	柔らかさ
 	Ambient Light	環境光
 	Light behind the object	オブジェクトの背後のライト
+	Add Dimension	寸法を追加
+	Angular	角度
+	Closed	閉じた矢印
+	Diameter	直径
+	Dimension Lines	寸法線
+	Dimension Options…	寸法オプション…
+	Dimension Selected Artwork	選択したアートワークの寸法を表示
+	Dimension Settings	寸法設定
+	Dimension Text	寸法テキスト
+	Dimension Tool	寸法ツール
+	Dimension Tool Options	寸法ツールオプション
+	Dotted	点線
+	Edit Dimension	寸法を編集
+	End	終点
+	Extension Lines	寸法補助線
+	Font Family:	フォントファミリー:
+	Font Size:	フォントサイズ:
+	Font Style:	フォントスタイル:
+	Gap:	間隔:
+	Hide Extension Lines	寸法補助線を非表示
+	Hide Units	単位を非表示
+	Linear	直線
+	On Line	線上
+	Overrun:	延長:
+	Pick points, then place label; Esc cancels	測定点を選択してラベルを配置、Esc でキャンセル
+	Position:	位置:
+	Precision:	精度:
+	Scale (1:n):	縮尺 (1:n):
+	Start	始点
+	Tick	斜線
+	Units & Scale	単位と縮尺
+@msg	angular dimension needs two different ray directions	角度寸法には異なる2つの半直線の方向が必要です
+@msg	dimension coordinates must be finite and within ±100000000	寸法座標は有限値かつ ±100000000 の範囲内である必要があります
+@msg	dimension needs {count} points	寸法には {count} 個の点が必要です
+@msg	dimension points must be distinct	寸法の点は異なる必要があります
+@msg	invalid dimension font name	寸法フォント名が無効です
+@msg	invalid dimension transform	寸法の変換が無効です
+@msg	invalid {name}	{name} が無効です
+@msg	missing dimension point	寸法点がありません
+@msg	missing first point	最初の点がありません
+@msg	missing second point	2番目の点がありません
+@msg	missing second ray	2番目の半直線がありません
+@msg	precision must be 0..6	精度は 0..6 である必要があります
+@msg	{name} must be finite and within {min}..{max}	{name} は有限値かつ {min}..{max} の範囲内である必要があります

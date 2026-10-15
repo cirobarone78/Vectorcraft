@@ -4344,3 +4344,47 @@ lighting	Light	광원
 	Softness	부드러움
 	Ambient Light	주변광
 	Light behind the object	개체 뒤의 조명
+	Add Dimension	치수 추가
+	Angular	각도
+	Closed	닫힌 화살표
+	Diameter	지름
+	Dimension Lines	치수선
+	Dimension Options…	치수 옵션…
+	Dimension Selected Artwork	선택한 아트워크 치수 표시
+	Dimension Settings	치수 설정
+	Dimension Text	치수 텍스트
+	Dimension Tool	치수 도구
+	Dimension Tool Options	치수 도구 옵션
+	Dotted	점선
+	Edit Dimension	치수 편집
+	End	끝
+	Extension Lines	연장선
+	Font Family:	글꼴 모음:
+	Font Size:	글꼴 크기:
+	Font Style:	글꼴 스타일:
+	Gap:	간격:
+	Hide Extension Lines	연장선 숨기기
+	Hide Units	단위 숨기기
+	Linear	선형
+	On Line	선 위
+	Overrun:	돌출 길이:
+	Pick points, then place label; Esc cancels	측정점을 선택한 후 레이블 배치; Esc로 취소
+	Position:	위치:
+	Precision:	정밀도:
+	Scale (1:n):	축척 (1:n):
+	Start	시작
+	Tick	빗금
+	Units & Scale	단위 및 축척
+@msg	angular dimension needs two different ray directions	각도 치수에는 서로 다른 두 반직선 방향이 필요합니다
+@msg	dimension coordinates must be finite and within ±100000000	치수 좌표는 유한하고 ±100000000 범위여야 합니다
+@msg	dimension needs {count} points	치수에는 {count}개의 점이 필요합니다
+@msg	dimension points must be distinct	치수 점은 서로 달라야 합니다
+@msg	invalid dimension font name	치수 글꼴 이름이 잘못되었습니다
+@msg	invalid dimension transform	치수 변환이 잘못되었습니다
+@msg	invalid {name}	{name}이(가) 잘못되었습니다
+@msg	missing dimension point	치수 점이 없습니다
+@msg	missing first point	첫 번째 점이 없습니다
+@msg	missing second point	두 번째 점이 없습니다
+@msg	missing second ray	두 번째 반직선이 없습니다
+@msg	precision must be 0..6	정밀도는 0..6이어야 합니다
+@msg	{name} must be finite and within {min}..{max}	{name}은(는) 유한하고 {min}..{max} 범위여야 합니다

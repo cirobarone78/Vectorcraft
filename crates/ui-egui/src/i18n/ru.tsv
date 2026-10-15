@@ -4376,3 +4376,47 @@ lighting	Light	Свет
 	Softness	Мягкость
 	Ambient Light	Окружающий свет
 	Light behind the object	Свет позади объекта
+	Add Dimension	Добавить размер
+	Angular	Угловой
+	Closed	Закрытая
+	Diameter	Диаметр
+	Dimension Lines	Размерные линии
+	Dimension Options…	Параметры размеров…
+	Dimension Selected Artwork	Нанести размеры выделенного рисунка
+	Dimension Settings	Настройки размеров
+	Dimension Text	Размерный текст
+	Dimension Tool	Инструмент «Размер»
+	Dimension Tool Options	Параметры инструмента «Размер»
+	Dotted	Пунктирная
+	Edit Dimension	Изменить размер
+	End	Конец
+	Extension Lines	Выносные линии
+	Font Family:	Семейство шрифтов:
+	Font Size:	Размер шрифта:
+	Font Style:	Начертание шрифта:
+	Gap:	Зазор:
+	Hide Extension Lines	Скрыть выносные линии
+	Hide Units	Скрыть единицы
+	Linear	Линейный
+	On Line	На линии
+	Overrun:	Выступ:
+	Pick points, then place label; Esc cancels	Выберите точки и разместите подпись; Esc — отмена
+	Position:	Положение:
+	Precision:	Точность:
+	Scale (1:n):	Масштаб (1:n):
+	Start	Начало
+	Tick	Засечка
+	Units & Scale	Единицы и масштаб
+@msg	angular dimension needs two different ray directions	Угловому размеру нужны два разных направления лучей
+@msg	dimension coordinates must be finite and within ±100000000	Координаты размера должны быть конечными и в пределах ±100000000
+@msg	dimension needs {count} points	Для размера требуется {count} точек
+@msg	dimension points must be distinct	Точки размера должны различаться
+@msg	invalid dimension font name	Неверное имя шрифта размера
+@msg	invalid dimension transform	Неверное преобразование размера
+@msg	invalid {name}	Недопустимое {name}
+@msg	missing dimension point	Отсутствует точка размера
+@msg	missing first point	Отсутствует первая точка
+@msg	missing second point	Отсутствует вторая точка
+@msg	missing second ray	Отсутствует второй луч
+@msg	precision must be 0..6	Точность должна быть 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} должно быть конечным и в пределах {min}..{max}

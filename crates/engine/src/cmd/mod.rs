@@ -12,6 +12,7 @@ pub mod colortheme;
 mod create;
 mod css;
 mod cut;
+mod dimension;
 pub(crate) mod distortcmds;
 mod docinfo;
 mod docmenu;
@@ -218,6 +219,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(layer::specs());
         v.extend(layerpanel::specs());
         v.extend(draw2::specs());
+        v.extend(dimension::specs());
         v.extend(xform::specs());
         v.extend(effectcmd::specs());
         v.extend(pathops::specs());

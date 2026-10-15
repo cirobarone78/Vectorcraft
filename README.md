@@ -202,6 +202,8 @@ For the experimental, unsupported 64-bit Windows 7 build, see [Windows 7 instruc
 
 ## Status
 
+The Dimension tool now adds editable distance, angle, radius and diameter annotations on a separate layer, with units, scale and appearance controls. Measurements are snapshots; [usage and limits](docs/dimension-tool.md).
+
 VectorCraft is under active development. [**ROADMAP.md**](ROADMAP.md) has the stage, the numbers by dimension
 and what's next; [`docs/target-app-parity.md`](docs/target-app-parity.md) the full parity assessment and
 [`docs/gaps.md`](docs/gaps.md) the ranked list of what's missing.

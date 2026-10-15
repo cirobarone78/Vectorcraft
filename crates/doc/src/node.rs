@@ -531,6 +531,10 @@ pub struct Node {
 /// them stay small ([`Node::extras`]).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct NodeExtras {
+    /// Editable measurement annotation; children are ordinary paths and text.
+    pub dimension: Option<Box<crate::dimension::DimensionSpec>>,
+    /// Dedicated annotation layer; independent of its user-editable name.
+    pub dimension_layer: bool,
     /// Opacity mask (Transparency panel). Its art lives here, outside the layer tree.
     pub mask: Option<Box<OpacityMask>>,
     /// Image Trace object: `{preset, params, view?}` it was traced with (the Image Trace panel shows
@@ -559,6 +563,8 @@ pub struct NodeExtras {
 
 /// No extras: what [`Node::extras`] gives for a node without any.
 static NO_EXTRAS: NodeExtras = NodeExtras {
+    dimension: None,
+    dimension_layer: false,
     mask: None,
     trace: None,
     wrap: None,
@@ -699,6 +705,8 @@ impl Serialize for Node {
             e.slice.is_none(),
             is_default(&self.bbox_angle),
             e.perspective.is_none(),
+            e.dimension.is_none(),
+            !e.dimension_layer,
         ];
         let mut st = s.serialize_struct("Node", skips.iter().filter(|s| !**s).count())?;
         let mut skip = skips.into_iter();
@@ -733,6 +741,8 @@ impl Serialize for Node {
         field!("slice", &e.slice);
         field!("bbox_angle", &self.bbox_angle);
         field!("perspective", &e.perspective);
+        field!("dimension", &e.dimension);
+        field!("dimensionLayer", &e.dimension_layer);
         st.end()
     }
 }
@@ -784,11 +794,17 @@ struct NodeWire {
     bbox_angle: f64,
     #[serde(default)]
     perspective: Option<Box<crate::PerspectiveAttachment>>,
+    #[serde(default)]
+    dimension: Option<Box<crate::dimension::DimensionSpec>>,
+    #[serde(default, rename = "dimensionLayer")]
+    dimension_layer: bool,
 }
 
 impl From<NodeWire> for Node {
     fn from(w: NodeWire) -> Self {
         let extras = NodeExtras {
+            dimension: w.dimension,
+            dimension_layer: w.dimension_layer,
             mask: w.mask,
             trace: w.trace,
             wrap: w.wrap,
@@ -1159,6 +1175,9 @@ impl Node {
         self.transform_scaled(a, &scaling.into());
     }
     fn transform_scaled(&mut self, a: Affine, sc: &Scaling) {
+        if let Some(spec) = self.extras_mut().dimension.as_mut() {
+            spec.transform = a * spec.transform;
+        }
         if !self.is_layer() {
             self.bbox_angle = crate::orient::transformed_angle(self.bbox_angle, a);
         }

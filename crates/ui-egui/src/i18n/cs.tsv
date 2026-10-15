@@ -4808,3 +4808,46 @@ mark-style	Japanese	Japonské
 	Softness	Měkkost
 	Ambient Light	Okolní světlo
 	Light behind the object	Světlo za objektem
+	Add Dimension	Přidat kótu
+	Angular	Úhlová
+	Closed	Uzavřená
+	Diameter	Průměr
+	Dimension Lines	Kótovací čáry
+	Dimension Options…	Volby kótování…
+	Dimension Selected Artwork	Okótovat vybranou kresbu
+	Dimension Settings	Nastavení kótování
+	Dimension Text	Text kóty
+	Dimension Tool	Nástroj Kóta
+	Dimension Tool Options	Volby nástroje Kóta
+	Dotted	Tečkovaná
+	Edit Dimension	Upravit kótu
+	End	Konec
+	Extension Lines	Vynášecí čáry
+	Font Family:	Rodina písma:
+	Font Size:	Velikost písma:
+	Font Style:	Řez písma:
+	Gap:	Mezera:
+	Hide Extension Lines	Skrýt vynášecí čáry
+	Hide Units	Skrýt jednotky
+	On Line	Na čáře
+	Overrun:	Přesah:
+	Pick points, then place label; Esc cancels	Vyberte body a umístěte popisek; Esc zruší
+	Position:	Poloha:
+	Precision:	Přesnost:
+	Scale (1:n):	Měřítko (1:n):
+	Start	Začátek
+	Tick	Šikmá čárka
+	Units & Scale	Jednotky a měřítko
+@msg	angular dimension needs two different ray directions	Úhlová kóta vyžaduje dva různé směry ramen
+@msg	dimension coordinates must be finite and within ±100000000	Souřadnice kóty musí být konečné a v rozsahu ±100000000
+@msg	dimension needs {count} points	Kóta vyžaduje {count} bodů
+@msg	dimension points must be distinct	Body kóty musí být různé
+@msg	invalid dimension font name	Neplatný název písma kóty
+@msg	invalid dimension transform	Neplatná transformace kóty
+@msg	invalid {name}	Neplatné {name}
+@msg	missing dimension point	Chybí bod kóty
+@msg	missing first point	Chybí první bod
+@msg	missing second point	Chybí druhý bod
+@msg	missing second ray	Chybí druhé rameno
+@msg	precision must be 0..6	Přesnost musí být 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} musí být konečné a v rozsahu {min}..{max}

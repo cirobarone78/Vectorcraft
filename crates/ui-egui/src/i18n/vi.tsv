@@ -4362,3 +4362,47 @@ theme	Appearance	Giao diện
 	Softness	Độ mềm
 	Ambient Light	Ánh sáng môi trường
 	Light behind the object	Ánh sáng phía sau đối tượng
+	Add Dimension	Thêm kích thước
+	Angular	Góc
+	Closed	Khép kín
+	Diameter	Đường kính
+	Dimension Lines	Đường kích thước
+	Dimension Options…	Tùy chọn kích thước…
+	Dimension Selected Artwork	Ghi kích thước hình đã chọn
+	Dimension Settings	Thiết lập kích thước
+	Dimension Text	Chữ kích thước
+	Dimension Tool	Công cụ Kích thước
+	Dimension Tool Options	Tùy chọn công cụ Kích thước
+	Dotted	Chấm
+	Edit Dimension	Sửa kích thước
+	End	Cuối
+	Extension Lines	Đường dóng
+	Font Family:	Họ phông chữ:
+	Font Size:	Cỡ chữ:
+	Font Style:	Kiểu phông chữ:
+	Gap:	Khoảng hở:
+	Hide Extension Lines	Ẩn đường dóng
+	Hide Units	Ẩn đơn vị
+	Linear	Tuyến tính
+	On Line	Trên đường
+	Overrun:	Phần nhô:
+	Pick points, then place label; Esc cancels	Chọn các điểm rồi đặt nhãn; Esc để hủy
+	Position:	Vị trí:
+	Precision:	Độ chính xác:
+	Scale (1:n):	Tỷ lệ (1:n):
+	Start	Đầu
+	Tick	Vạch chéo
+	Units & Scale	Đơn vị và tỷ lệ
+@msg	angular dimension needs two different ray directions	Kích thước góc cần hai hướng tia khác nhau
+@msg	dimension coordinates must be finite and within ±100000000	Tọa độ kích thước phải hữu hạn và trong ±100000000
+@msg	dimension needs {count} points	Kích thước cần {count} điểm
+@msg	dimension points must be distinct	Các điểm kích thước phải khác nhau
+@msg	invalid dimension font name	Tên phông kích thước không hợp lệ
+@msg	invalid dimension transform	Phép biến đổi kích thước không hợp lệ
+@msg	invalid {name}	{name} không hợp lệ
+@msg	missing dimension point	Thiếu điểm kích thước
+@msg	missing first point	Thiếu điểm thứ nhất
+@msg	missing second point	Thiếu điểm thứ hai
+@msg	missing second ray	Thiếu tia thứ hai
+@msg	precision must be 0..6	Độ chính xác phải là 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} phải hữu hạn và trong {min}..{max}

@@ -39,6 +39,13 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         return;
     }
     transform_section(app, ui);
+    if n_sel == 1 && first.as_ref().is_some_and(|n| n.extras().dimension.is_some()) {
+        divider(ui);
+        section_header(ui, tl!("Dimensions"));
+        if ui.button(tl!("Dimension Options…")).clicked() {
+            crate::dialogs::dimension_options::open(app);
+        }
+    }
     divider(ui);
     // The Gradient tool: the gradient's type and, for a freeform one, how clicks add points (#921).
     if app.session.tool_id() == "gradient" {

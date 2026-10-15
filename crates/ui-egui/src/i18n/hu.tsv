@@ -4775,3 +4775,46 @@ imageTrace	Outline	Körvonal
 	Softness	Lágyság
 	Ambient Light	Környezeti fény
 	Light behind the object	Fény az objektum mögött
+	Add Dimension	Méret hozzáadása
+	Angular	Szög
+	Closed	Zárt
+	Diameter	Átmérő
+	Dimension Lines	Méretvonalak
+	Dimension Options…	Méretezési beállítások…
+	Dimension Selected Artwork	Kijelölt rajz méretezése
+	Dimension Settings	Méretezési beállítások
+	Dimension Text	Méretszöveg
+	Dimension Tool	Méretező eszköz
+	Dimension Tool Options	Méretező eszköz beállításai
+	Dotted	Pontozott
+	Edit Dimension	Méret szerkesztése
+	End	Vég
+	Extension Lines	Segédvonalak
+	Font Family:	Betűcsalád:
+	Font Size:	Betűméret:
+	Font Style:	Betűstílus:
+	Gap:	Hézag:
+	Hide Extension Lines	Segédvonalak elrejtése
+	Hide Units	Mértékegységek elrejtése
+	On Line	A vonalon
+	Overrun:	Túlnyúlás:
+	Pick points, then place label; Esc cancels	Válasszon pontokat, majd helyezze el a feliratot; Esc: mégse
+	Position:	Pozíció:
+	Precision:	Pontosság:
+	Scale (1:n):	Méretarány (1:n):
+	Start	Kezdet
+	Tick	Ferde vonal
+	Units & Scale	Mértékegységek és méretarány
+@msg	angular dimension needs two different ray directions	A szögméret két különböző félegyenes-irányt igényel
+@msg	dimension coordinates must be finite and within ±100000000	A méret koordinátái végesek és ±100000000 tartományúak legyenek
+@msg	dimension needs {count} points	A mérethez {count} pont szükséges
+@msg	dimension points must be distinct	A méretpontok különbözőek legyenek
+@msg	invalid dimension font name	Érvénytelen méretbetűtípus-név
+@msg	invalid dimension transform	Érvénytelen mérettranszformáció
+@msg	invalid {name}	Érvénytelen {name}
+@msg	missing dimension point	Hiányzó méretpont
+@msg	missing first point	Hiányzó első pont
+@msg	missing second point	Hiányzó második pont
+@msg	missing second ray	Hiányzó második félegyenes
+@msg	precision must be 0..6	A pontosság 0..6 legyen
+@msg	{name} must be finite and within {min}..{max}	{name} véges és {min}..{max} tartományú legyen

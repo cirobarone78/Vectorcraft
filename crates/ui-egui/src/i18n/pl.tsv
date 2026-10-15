@@ -4651,3 +4651,46 @@ mark-style	Japanese	Japońskie
 	Softness	Miękkość
 	Ambient Light	Światło otoczenia
 	Light behind the object	Światło za obiektem
+	Add Dimension	Dodaj wymiar
+	Angular	Kątowy
+	Closed	Zamknięty
+	Diameter	Średnica
+	Dimension Lines	Linie wymiarowe
+	Dimension Options…	Opcje wymiarowania…
+	Dimension Selected Artwork	Zwymiaruj zaznaczoną grafikę
+	Dimension Settings	Ustawienia wymiarowania
+	Dimension Text	Tekst wymiaru
+	Dimension Tool	Narzędzie Wymiar
+	Dimension Tool Options	Opcje narzędzia Wymiar
+	Dotted	Kropkowana
+	Edit Dimension	Edytuj wymiar
+	End	Koniec
+	Extension Lines	Linie pomocnicze
+	Font Family:	Rodzina czcionek:
+	Font Size:	Rozmiar czcionki:
+	Font Style:	Styl czcionki:
+	Gap:	Odstęp:
+	Hide Extension Lines	Ukryj linie pomocnicze
+	Hide Units	Ukryj jednostki
+	On Line	Na linii
+	Overrun:	Wystawanie:
+	Pick points, then place label; Esc cancels	Wybierz punkty i umieść etykietę; Esc anuluje
+	Position:	Położenie:
+	Precision:	Dokładność:
+	Scale (1:n):	Skala (1:n):
+	Start	Początek
+	Tick	Ukośnik
+	Units & Scale	Jednostki i skala
+@msg	angular dimension needs two different ray directions	Wymiar kątowy wymaga dwóch różnych kierunków ramion
+@msg	dimension coordinates must be finite and within ±100000000	Współrzędne wymiaru muszą być skończone i w zakresie ±100000000
+@msg	dimension needs {count} points	Wymiar wymaga {count} punktów
+@msg	dimension points must be distinct	Punkty wymiaru muszą być różne
+@msg	invalid dimension font name	Nieprawidłowa nazwa czcionki wymiaru
+@msg	invalid dimension transform	Nieprawidłowe przekształcenie wymiaru
+@msg	invalid {name}	Nieprawidłowe {name}
+@msg	missing dimension point	Brak punktu wymiaru
+@msg	missing first point	Brak pierwszego punktu
+@msg	missing second point	Brak drugiego punktu
+@msg	missing second ray	Brak drugiego ramienia
+@msg	precision must be 0..6	Dokładność musi wynosić 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} musi być skończone i w zakresie {min}..{max}

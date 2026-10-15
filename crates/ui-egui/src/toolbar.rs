@@ -58,6 +58,7 @@ pub const BASIC: &[(&str, &[&[&str]])] = &[
             &["width", "warp", "twirl", "pucker", "bloat", "scallop", "crystallize", "wrinkle"],
             &["rotate", "reflect", "scale", "shear", "reshape", "freeTransform", "puppetWarp"],
             &["shapeBuilder", "livePaintBucket", "livePaintSelection", "blend"],
+            &["dimension"],
         ],
     ),
     ("Type", &[&["areaType", "typeOnPath", "verticalAreaType", "verticalTypeOnPath"], &["type", "verticalType", "touchType"]]),
@@ -339,6 +340,7 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
         "gradient" | "magicWand" if app.ui.open_panel.as_deref() == Some(tool) => Ok(json!({ "open": tool })),
         "gradient" | "magicWand" => app.run("window.panel", json!({ "panel": tool })),
         "artboard" => crate::dialogs::artboard_options::open(app),
+        "dimension" => Ok(crate::dialogs::dimension_options::open(app)),
         "eyedropper" => {
             crate::dialogs::eyedropper::open(app);
             Ok(json!({ "dialog": crate::dialogs::eyedropper::KIND }))
@@ -372,6 +374,9 @@ pub fn open_options(app: &mut VectorcraftApp, tool: &str) -> Result<serde_json::
 /// Warp's mesh and pins, the Artboard tool's Move and Scale Artwork with Artboard (set through
 /// `tool.setOption`).
 pub fn control_bar_options(app: &mut VectorcraftApp, ui: &mut Ui) {
+    if app.session.tool_id() == "dimension" {
+        return crate::dialogs::dimension_options::control_bar(app, ui);
+    }
     /// (value, label) of each choice.
     type Choices = &'static [(&'static str, &'static str)];
     const MIRROR: [(&str, &str, Choices); 2] = [

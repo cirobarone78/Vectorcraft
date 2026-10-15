@@ -4380,3 +4380,47 @@ lighting	Light	Luce
 	Softness	Morbidezza
 	Ambient Light	Luce ambientale
 	Light behind the object	Luce dietro l'oggetto
+	Add Dimension	Aggiungi quota
+	Angular	Angolare
+	Closed	Chiusa
+	Diameter	Diametro
+	Dimension Lines	Linee di quota
+	Dimension Options…	Opzioni quota…
+	Dimension Selected Artwork	Quota la grafica selezionata
+	Dimension Settings	Impostazioni quota
+	Dimension Text	Testo di quota
+	Dimension Tool	Strumento Quota
+	Dimension Tool Options	Opzioni strumento Quota
+	Dotted	Punteggiata
+	Edit Dimension	Modifica quota
+	End	Fine
+	Extension Lines	Linee di estensione
+	Font Family:	Famiglia di font:
+	Font Size:	Dimensione font:
+	Font Style:	Stile font:
+	Gap:	Spazio:
+	Hide Extension Lines	Nascondi linee di estensione
+	Hide Units	Nascondi unità
+	Linear	Lineare
+	On Line	Sulla linea
+	Overrun:	Sporgenza:
+	Pick points, then place label; Esc cancels	Scegli i punti e posiziona la quota; Esc annulla
+	Position:	Posizione:
+	Precision:	Precisione:
+	Scale (1:n):	Scala (1:n):
+	Start	Inizio
+	Tick	Tratto obliquo
+	Units & Scale	Unità e scala
+@msg	angular dimension needs two different ray directions	La quota angolare richiede due direzioni di semiretta diverse
+@msg	dimension coordinates must be finite and within ±100000000	Le coordinate della quota devono essere finite e comprese in ±100000000
+@msg	dimension needs {count} points	La quota richiede {count} punti
+@msg	dimension points must be distinct	I punti della quota devono essere distinti
+@msg	invalid dimension font name	Nome del font della quota non valido
+@msg	invalid dimension transform	Trasformazione della quota non valida
+@msg	invalid {name}	{name} non valido
+@msg	missing dimension point	Punto della quota mancante
+@msg	missing first point	Primo punto mancante
+@msg	missing second point	Secondo punto mancante
+@msg	missing second ray	Seconda semiretta mancante
+@msg	precision must be 0..6	La precisione deve essere 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} deve essere finito e compreso in {min}..{max}

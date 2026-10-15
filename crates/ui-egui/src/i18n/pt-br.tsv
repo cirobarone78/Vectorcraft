@@ -3763,3 +3763,48 @@ axis	Both	Ambos
 	Softness	Suavidade
 	Ambient Light	Luz ambiente
 	Light behind the object	Luz atrás do objeto
+	Add Dimension	Adicionar cota
+	Angular	Angular
+	Closed	Fechada
+	Diameter	Diâmetro
+	Dimension Lines	Linhas de cota
+	Dimension Options…	Opções de cotas…
+	Dimension Selected Artwork	Cotar arte selecionada
+	Dimension Settings	Configurações de cotas
+	Dimension Text	Texto da cota
+	Dimension Tool	Ferramenta Cota
+	Dimension Tool Options	Opções da ferramenta Cota
+	Dotted	Pontilhada
+	Edit Dimension	Editar cota
+	End	Fim
+	Extension Lines	Linhas auxiliares
+	Font Family:	Família de fontes:
+	Font Size:	Tamanho da fonte:
+	Font Style:	Estilo da fonte:
+	Gap:	Espaço:
+	Hide Extension Lines	Ocultar linhas auxiliares
+	Hide Units	Ocultar unidades
+	Linear	Linear
+	On Line	Sobre a linha
+	Overrun:	Extensão:
+	Pick points, then place label; Esc cancels	Selecione os pontos e posicione a cota; Esc cancela
+	Position:	Posição:
+	Precision:	Precisão:
+	Scale (1:n):	Escala (1:n):
+	Start	Início
+	Tick	Traço oblíquo
+	Units & Scale	Unidades e escala
+@msg	angular dimension needs two different ray directions	A cota angular requer duas direções de raio distintas
+@msg	dimension coordinates must be finite and within ±100000000	As coordenadas da cota devem ser finitas e estar em ±100000000
+@msg	dimension needs {count} points	A cota requer {count} pontos
+@msg	dimension points must be distinct	Os pontos da cota devem ser distintos
+@msg	invalid dimension font name	Nome da fonte da cota inválido
+@msg	invalid dimension transform	Transformação da cota inválida
+@msg	invalid {name}	{name} inválido
+@msg	missing dimension point	Ponto da cota ausente
+@msg	missing first point	Primeiro ponto ausente
+@msg	missing second point	Segundo ponto ausente
+@msg	missing second ray	Segundo raio ausente
+@msg	precision must be 0..6	A precisão deve ser 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} deve ser finito e estar em {min}..{max}
+	Radius	Raio

@@ -4808,3 +4808,46 @@ theme	Appearance	Apparence
 	Softness	Douceur
 	Ambient Light	Lumière ambiante
 	Light behind the object	Lumière derrière l'objet
+	Add Dimension	Ajouter une cote
+	Angular	Angulaire
+	Closed	Fermée
+	Diameter	Diamètre
+	Dimension Lines	Lignes de cote
+	Dimension Options…	Options de cotation…
+	Dimension Selected Artwork	Coter les illustrations sélectionnées
+	Dimension Settings	Réglages de cotation
+	Dimension Text	Texte de cote
+	Dimension Tool	Outil Cotation
+	Dimension Tool Options	Options de l’outil Cotation
+	Dotted	Pointillés
+	Edit Dimension	Modifier la cote
+	End	Fin
+	Extension Lines	Lignes d’attache
+	Font Family:	Famille de polices :
+	Font Size:	Corps :
+	Font Style:	Style de police :
+	Gap:	Écart :
+	Hide Extension Lines	Masquer les lignes d’attache
+	Hide Units	Masquer les unités
+	On Line	Sur la ligne
+	Overrun:	Dépassement :
+	Pick points, then place label; Esc cancels	Choisissez les points puis placez la cote ; Échap annule
+	Position:	Position :
+	Precision:	Précision :
+	Scale (1:n):	Échelle (1:n) :
+	Start	Début
+	Tick	Trait oblique
+	Units & Scale	Unités et échelle
+@msg	angular dimension needs two different ray directions	La cote angulaire nécessite deux directions de rayon différentes
+@msg	dimension coordinates must be finite and within ±100000000	Les coordonnées de cote doivent être finies et comprises dans ±100000000
+@msg	dimension needs {count} points	La cote nécessite {count} points
+@msg	dimension points must be distinct	Les points de cote doivent être distincts
+@msg	invalid dimension font name	Nom de police de cote incorrect
+@msg	invalid dimension transform	Transformation de cote incorrecte
+@msg	invalid {name}	{name} incorrect
+@msg	missing dimension point	Point de cote manquant
+@msg	missing first point	Premier point manquant
+@msg	missing second point	Deuxième point manquant
+@msg	missing second ray	Deuxième rayon manquant
+@msg	precision must be 0..6	La précision doit être 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} doit être fini et compris dans {min}..{max}

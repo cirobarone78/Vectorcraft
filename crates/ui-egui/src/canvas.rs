@@ -463,6 +463,7 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         task_bar(app, ui, &xf);
     }
     if app.ui.screen_mode < 3 {
+        crate::dialogs::dimension_options::floating_bar(app, ui, xf.rect);
         crate::free_transform::show(app, ui, xf.rect);
     }
     // Cursor.

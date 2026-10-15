@@ -40,6 +40,7 @@ pub fn create(id: &str) -> Option<Box<dyn Tool>> {
         "magicWand" => Box::new(MagicWandTool),
         "lasso" => Box::new(LassoTool::default()),
         "measure" => Box::new(MeasureTool::default()),
+        "dimension" => Box::new(crate::dimension::DimensionTool::default()),
         _ => return None,
     })
 }

@@ -4360,3 +4360,47 @@ lighting	Light	Світло
 	Softness	М'якість
 	Ambient Light	Навколишнє світло
 	Light behind the object	Світло позаду об'єкта
+	Add Dimension	Додати розмір
+	Angular	Кутовий
+	Closed	Закрита
+	Diameter	Діаметр
+	Dimension Lines	Розмірні лінії
+	Dimension Options…	Параметри розмірів…
+	Dimension Selected Artwork	Нанести розміри виділеного рисунка
+	Dimension Settings	Налаштування розмірів
+	Dimension Text	Розмірний текст
+	Dimension Tool	Інструмент «Розмір»
+	Dimension Tool Options	Параметри інструмента «Розмір»
+	Dotted	Крапкова
+	Edit Dimension	Змінити розмір
+	End	Кінець
+	Extension Lines	Виносні лінії
+	Font Family:	Родина шрифтів:
+	Font Size:	Розмір шрифту:
+	Font Style:	Накреслення шрифту:
+	Gap:	Проміжок:
+	Hide Extension Lines	Приховати виносні лінії
+	Hide Units	Приховати одиниці
+	Linear	Лінійний
+	On Line	На лінії
+	Overrun:	Виступ:
+	Pick points, then place label; Esc cancels	Виберіть точки й розмістіть підпис; Esc — скасування
+	Position:	Положення:
+	Precision:	Точність:
+	Scale (1:n):	Масштаб (1:n):
+	Start	Початок
+	Tick	Засічка
+	Units & Scale	Одиниці та масштаб
+@msg	angular dimension needs two different ray directions	Кутовому розміру потрібні два різні напрямки променів
+@msg	dimension coordinates must be finite and within ±100000000	Координати розміру мають бути скінченними й у межах ±100000000
+@msg	dimension needs {count} points	Для розміру потрібно {count} точок
+@msg	dimension points must be distinct	Точки розміру мають відрізнятися
+@msg	invalid dimension font name	Неправильна назва шрифту розміру
+@msg	invalid dimension transform	Неправильне перетворення розміру
+@msg	invalid {name}	Недопустиме {name}
+@msg	missing dimension point	Відсутня точка розміру
+@msg	missing first point	Відсутня перша точка
+@msg	missing second point	Відсутня друга точка
+@msg	missing second ray	Відсутній другий промінь
+@msg	precision must be 0..6	Точність має бути 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} має бути скінченним й у межах {min}..{max}

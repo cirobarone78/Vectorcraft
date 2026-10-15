@@ -20,6 +20,7 @@ mod inline;
 pub mod shared;
 pub use inline::{SYMBOL_HALF, SYMBOL_SIZES};
 pub use shared::Shared;
+pub mod dimension;
 pub mod links;
 pub mod live;
 pub mod marks;

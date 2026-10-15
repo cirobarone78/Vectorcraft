@@ -3957,3 +3957,47 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	环境光
 	Light behind the object	光源位于对象后方
+	Add Dimension	添加尺寸标注
+	Angular	角度
+	Closed	闭合
+	Diameter	直径
+	Dimension Lines	尺寸线
+	Dimension Options…	尺寸选项…
+	Dimension Selected Artwork	标注所选图稿尺寸
+	Dimension Settings	尺寸设置
+	Dimension Text	尺寸文字
+	Dimension Tool	尺寸工具
+	Dimension Tool Options	尺寸工具选项
+	Dotted	点线
+	Edit Dimension	编辑尺寸标注
+	End	末端
+	Extension Lines	延伸线
+	Font Family:	字体系列：
+	Font Size:	字号：
+	Font Style:	字体样式：
+	Gap:	间隙：
+	Hide Extension Lines	隐藏延伸线
+	Hide Units	隐藏单位
+	Linear	线性
+	On Line	在线上
+	Overrun:	超出长度：
+	Pick points, then place label; Esc cancels	选取测量点后放置标注；Esc 取消
+	Position:	位置：
+	Precision:	精度：
+	Scale (1:n):	比例（1:n）：
+	Start	起点
+	Tick	斜线
+	Units & Scale	单位与缩放
+@msg	angular dimension needs two different ray directions	角度标注需要两个不同的射线方向
+@msg	dimension coordinates must be finite and within ±100000000	尺寸坐标必须为有限值且在 ±100000000 范围内
+@msg	dimension needs {count} points	尺寸标注需要 {count} 个点
+@msg	dimension points must be distinct	尺寸标注的点不能重合
+@msg	invalid dimension font name	尺寸标注字体名称无效
+@msg	invalid dimension transform	尺寸标注变换无效
+@msg	invalid {name}	{name} 无效
+@msg	missing dimension point	缺少尺寸测量点
+@msg	missing first point	缺少第一个点
+@msg	missing second point	缺少第二个点
+@msg	missing second ray	缺少第二条射线
+@msg	precision must be 0..6	精度必须为 0..6
+@msg	{name} must be finite and within {min}..{max}	{name} 必须为有限值且在 {min}..{max} 范围内

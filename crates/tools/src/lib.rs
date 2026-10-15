@@ -13,6 +13,7 @@ pub mod catalog;
 pub mod corners;
 pub mod cropimage;
 pub mod cut;
+pub mod dimension;
 pub mod direct;
 pub mod distort;
 pub mod draw2;

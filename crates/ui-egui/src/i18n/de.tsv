@@ -4335,3 +4335,47 @@ theme	Appearance	Erscheinungsbild
 	Softness	Weichheit
 	Ambient Light	Umgebungslicht
 	Light behind the object	Licht hinter dem Objekt
+	Add Dimension	Bemaßung hinzufügen
+	Angular	Winkel
+	Closed	Geschlossen
+	Diameter	Durchmesser
+	Dimension Lines	Maßlinien
+	Dimension Options…	Bemaßungsoptionen…
+	Dimension Selected Artwork	Ausgewählte Grafik bemaßen
+	Dimension Settings	Bemaßungseinstellungen
+	Dimension Text	Maßtext
+	Dimension Tool	Bemaßungswerkzeug
+	Dimension Tool Options	Bemaßungswerkzeugoptionen
+	Dotted	Gepunktet
+	Edit Dimension	Bemaßung bearbeiten
+	End	Ende
+	Extension Lines	Maßhilfslinien
+	Font Family:	Schriftfamilie:
+	Font Size:	Schriftgröße:
+	Font Style:	Schriftschnitt:
+	Gap:	Abstand:
+	Hide Extension Lines	Maßhilfslinien ausblenden
+	Hide Units	Einheiten ausblenden
+	Linear	Linear
+	On Line	Auf der Linie
+	Overrun:	Überstand:
+	Pick points, then place label; Esc cancels	Messpunkte wählen, dann Beschriftung platzieren; Esc bricht ab
+	Position:	Position:
+	Precision:	Genauigkeit:
+	Scale (1:n):	Maßstab (1:n):
+	Start	Anfang
+	Tick	Schrägstrich
+	Units & Scale	Einheiten und Maßstab
+@msg	angular dimension needs two different ray directions	Eine Winkelbemaßung benötigt zwei verschiedene Strahlrichtungen
+@msg	dimension coordinates must be finite and within ±100000000	Bemaßungskoordinaten müssen endlich und innerhalb von ±100000000 sein
+@msg	dimension needs {count} points	Die Bemaßung benötigt {count} Punkte
+@msg	dimension points must be distinct	Bemaßungspunkte müssen verschieden sein
+@msg	invalid dimension font name	Ungültiger Schriftname der Bemaßung
+@msg	invalid dimension transform	Ungültige Bemaßungstransformation
+@msg	invalid {name}	Ungültiges {name}
+@msg	missing dimension point	Bemaßungspunkt fehlt
+@msg	missing first point	Erster Punkt fehlt
+@msg	missing second point	Zweiter Punkt fehlt
+@msg	missing second ray	Zweiter Strahl fehlt
+@msg	precision must be 0..6	Genauigkeit muss 0..6 sein
+@msg	{name} must be finite and within {min}..{max}	{name} muss endlich und innerhalb von {min}..{max} sein
