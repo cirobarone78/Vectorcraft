@@ -1,7 +1,13 @@
 //! Artboard tool (Shift+O).
 //!
 //! Click an object to create an artboard fitted to its visible bounds; drag still moves the
-//! containing artboard or draws one on the pasteboard. Click an empty part of an artboard to
+//! containing artboard or draws one on the pasteboard. A double-click on an object does that
+//! once, does not open Artboard Options, and deletes every other artboard that shares area with
+//! the new one (a partial overlap or one that covers it). When exactly one other artboard is not
+//! already that rectangle, it goes too, even if it does not meet the new artboard. An artboard
+//! that only shares an edge stays when other artboards remain. Double-click an empty
+//! part of an artboard to
+//! open Artboard Options. Click an empty part of an artboard to
 //! make it active (dashed bounds, 8 handles and its name); Shift-click adds
 //! artboards to the selection or takes them out (dashed bounds), and a drag or Delete then acts on
 //! all of them (#1139). Drag inside moves
@@ -73,6 +79,9 @@ pub struct ArtboardTool {
     guides: Vec<Overlay>,
     /// Smart Guides for the corners of a new artboard.
     draw: DrawSnap,
+    /// The canvas sets this on the second click of a double-click, so that release does not fit
+    /// a second artboard before [`PointerKind::DoubleClick`] arrives.
+    suppress_fit: bool,
 }
 
 impl Default for ArtboardTool {
@@ -89,6 +98,7 @@ impl Default for ArtboardTool {
             copy_targets: None,
             guides: vec![],
             draw: DrawSnap::default(),
+            suppress_fit: false,
         }
     }
 }
@@ -190,16 +200,76 @@ impl ArtboardTool {
         self.guides.clear();
         self.draw.clear();
     }
+
+    /// One artboard at `rect`. Every other artboard that shares area with it, including one that
+    /// covers it, is deleted. When exactly one other artboard is not already that rectangle, it
+    /// is deleted too, even if it does not meet `rect`. A shared edge is not enough to remove an
+    /// artboard when more than one other remains. An artboard already at `rect` is kept (the
+    /// newest, when a double-click's clicks each fitted one) instead of stacking another.
+    fn fit_replacing_overlaps(&mut self, cx: &ToolContext, rect: Rect) -> Vec<Action> {
+        let boards = &cx.doc.artboards;
+        let keeper = boards.iter().rposition(|a| same_rect(a.rect, rect));
+        let keeper_index = keeper.unwrap_or(boards.len());
+        let mut drop: Vec<usize> =
+            boards.iter().enumerate().filter(|(i, a)| *i != keeper_index && overlaps_area(a.rect, rect)).map(|(i, _)| i).collect();
+        // Copies already at `rect` are the fitted artboard, not another one.
+        let distinct_others: Vec<usize> =
+            (0..boards.len()).filter(|i| *i != keeper_index && !boards.get(*i).is_some_and(|a| same_rect(a.rect, rect))).collect();
+        if let [only] = distinct_others.as_slice()
+            && !drop.contains(only)
+        {
+            drop.push(*only);
+        }
+        let removed_before = drop.iter().filter(|i| **i < keeper_index).count();
+        self.active = keeper_index.saturating_sub(removed_before);
+        self.others.clear();
+        let mut steps: Vec<Value> = vec![];
+        if keeper.is_none() {
+            steps.push(json!({ "command": "artboard.new", "params": rect_params(rect) }));
+        }
+        if !drop.is_empty() {
+            steps.push(json!({ "command": "artboard.delete", "params": { "indices": drop } }));
+        }
+        match steps.as_slice() {
+            [] => vec![],
+            [only] => {
+                let cmd = only.get("command").and_then(Value::as_str).unwrap_or("");
+                let params = only.get("params").cloned().unwrap_or_default();
+                vec![Action::Exec(cmd.to_string(), params)]
+            }
+            _ => vec![Action::Exec("command.batch".into(), json!({ "label": "New Artboard", "commands": steps }))],
+        }
+    }
 }
 
 /// An artboard's shortest side (as `artboard.setProps` keeps it).
 const MIN_SIDE: f64 = 1.0;
 
+fn rect_params(r: Rect) -> Value {
+    json!({ "x": r.x0, "y": r.y0, "width": r.width(), "height": r.height() })
+}
+
 fn create_artboard(r: Rect) -> Vec<Action> {
-    vec![
-        Action::Exec("artboard.new".into(), json!({ "x": r.x0, "y": r.y0, "width": r.width(), "height": r.height() })),
-        Action::Notify("created".into()),
-    ]
+    vec![Action::Exec("artboard.new".into(), rect_params(r)), Action::Notify("created".into())]
+}
+
+/// The visible bounds of the topmost object under `p`, when they are large enough to be an artboard.
+fn fittable_bounds(cx: &ToolContext, p: Point) -> Option<Rect> {
+    vectorcraft_doc::hit::hit_test(cx.doc, p, cx.hit_options())
+        .and_then(|h| cx.doc.bounds_of(&[h.top_object(cx.isolation)], true))
+        .filter(|r| r.width() >= MIN_SIDE && r.height() >= MIN_SIDE && [r.x0, r.y0, r.x1, r.y1].iter().all(|n| n.is_finite()))
+}
+
+/// Positive area in common. [`Rect::overlaps`] is also true when the rectangles only share an
+/// edge, which would remove an artboard sitting against the fitted one.
+fn overlaps_area(a: Rect, b: Rect) -> bool {
+    a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1
+}
+
+/// `a` and `b` are the same artboard rectangle (a fitted board round-trips through `artboard.new`).
+fn same_rect(a: Rect, b: Rect) -> bool {
+    const E: f64 = 1e-4;
+    (a.x0 - b.x0).abs() <= E && (a.y0 - b.y0).abs() <= E && (a.x1 - b.x1).abs() <= E && (a.y1 - b.y1).abs() <= E
 }
 
 /// `r` grown about `anchor` until both sides are at least [`MIN_SIDE`], by one factor, so a
@@ -233,6 +303,10 @@ impl Tool for ArtboardTool {
     fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Vec<Action> {
         let p = ev.pos;
         let m = ev.mods;
+        // Set by the canvas on the second click of a double-click, and only for the release that
+        // follows. Any other event drops it, so a later single click still fits.
+        let skip_fit = ev.kind == PointerKind::Up && self.suppress_fit;
+        self.suppress_fit = false;
         if ev.kind == PointerKind::Drag && self.click_art.is_some_and(|(start, _)| m != Mods::default() || p.distance(start) >= cx.tol(3.0)) {
             self.click_art = None;
         }
@@ -246,12 +320,9 @@ impl Tool for ArtboardTool {
                     return vec![];
                 }
                 if m == Mods::default() {
-                    self.click_art = vectorcraft_doc::hit::hit_test(cx.doc, p, cx.hit_options())
-                        .and_then(|h| cx.doc.bounds_of(&[h.top_object(cx.isolation)], true))
-                        // Match Fit to Selected Art, and do not stretch zero-sized art to the
-                        // artboard command's minimum side or pass non-finite bounds to it.
-                        .filter(|r| r.width() >= MIN_SIDE && r.height() >= MIN_SIDE && [r.x0, r.y0, r.x1, r.y1].iter().all(|n| n.is_finite()))
-                        .map(|r| (p, r));
+                    // Match Fit to Selected Art, and do not stretch zero-sized art to the
+                    // artboard command's minimum side or pass non-finite bounds to it.
+                    self.click_art = fittable_bounds(cx, p).map(|r| (p, r));
                 }
                 if let Some(i) = cx.doc.artboard_at(p)
                     && let Some(a) = cx.doc.artboards.get(i)
@@ -327,6 +398,7 @@ impl Tool for ArtboardTool {
                 let click_art = self.click_art;
                 self.end_drag();
                 if m == Mods::default()
+                    && !skip_fit
                     && let Some((start, r)) = click_art
                     && p.distance(start) < cx.tol(3.0)
                 {
@@ -357,6 +429,14 @@ impl Tool for ArtboardTool {
             }
             (PointerKind::DoubleClick, _) => {
                 self.end_drag();
+                // A handle keeps Artboard Options: a double-click there is not an object fit.
+                let on_handle = self.active_rect(cx).and_then(|r| hit_handle(r, p, cx.tol(5.0))).is_some();
+                if m == Mods::default()
+                    && !on_handle
+                    && let Some(r) = fittable_bounds(cx, p)
+                {
+                    return self.fit_replacing_overlaps(cx, r);
+                }
                 match cx.doc.artboards.get(self.active) {
                     Some(a) => {
                         let mut v = rect_json(self.active, a.rect);
@@ -485,6 +565,8 @@ impl Tool for ArtboardTool {
             }
             "moveArt" => self.move_art = value.as_bool().unwrap_or(true),
             "scaleArt" => self.scale_art = value.as_bool().unwrap_or(false),
+            // Not one of the saved options: the canvas sets it for the release of a double-click.
+            "suppressFitClick" => self.suppress_fit = value.as_bool().unwrap_or(false),
             _ => {}
         }
     }

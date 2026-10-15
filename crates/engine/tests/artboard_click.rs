@@ -1,9 +1,11 @@
 //! Artboard clicks fit the object without changing its art or selection, and are one undo step.
+//! A double-click fits once, does not open Artboard Options, and deletes artboards that overlap
+//! the fitted one.
 #![allow(clippy::unwrap_used)]
 
 use serde_json::json;
 use vectorcraft_doc::NodeId;
-use vectorcraft_engine::{Session, ViewInfo};
+use vectorcraft_engine::{Session, UiRequest, ViewInfo};
 use vectorcraft_geom::Rect;
 use vectorcraft_tools::{Mods, PointerEvent, PointerKind, ToolKey};
 
@@ -18,6 +20,27 @@ fn fixture(x: f64, y: f64) -> (Session, NodeId) {
 
 fn pointer(s: &mut Session, kind: PointerKind, x: f64, y: f64) {
     s.pointer(&PointerEvent::new(kind, x, y), ViewInfo::default()).unwrap();
+}
+
+fn pointer_reqs(s: &mut Session, kind: PointerKind, x: f64, y: f64) -> Vec<UiRequest> {
+    s.pointer(&PointerEvent::new(kind, x, y), ViewInfo::default()).unwrap()
+}
+
+fn is_dialog(r: &UiRequest) -> bool {
+    matches!(r, UiRequest::Dialog(_, _))
+}
+
+/// The two clicks of a double-click, then the double-click. `suppress` is what the canvas does on
+/// the second release, so that click does not fit a second artboard.
+fn double_click(s: &mut Session, x: f64, y: f64, suppress: bool) -> Vec<UiRequest> {
+    pointer(s, PointerKind::Down, x, y);
+    pointer(s, PointerKind::Up, x, y);
+    pointer(s, PointerKind::Down, x, y);
+    if suppress {
+        s.set_tool_option("suppressFitClick", &json!(true));
+    }
+    pointer(s, PointerKind::Up, x, y);
+    pointer_reqs(s, PointerKind::DoubleClick, x, y)
 }
 
 #[test]
@@ -127,4 +150,102 @@ fn locked_hidden_modifier_handle_and_drag_gestures_keep_their_existing_meaning()
         pointer(&mut s, PointerKind::Up, x + 40.0, y + 25.0);
         assert_eq!(s.doc().unwrap().doc.artboards.len(), 1, "a drag returning to its start does not become an object click");
     }
+}
+
+#[test]
+fn a_second_single_click_on_the_same_object_fits_another_artboard() {
+    let (mut s, _) = fixture(100.0, 100.0);
+    pointer(&mut s, PointerKind::Down, 140.0, 125.0);
+    pointer(&mut s, PointerKind::Up, 140.0, 125.0);
+    pointer(&mut s, PointerKind::Down, 140.0, 125.0);
+    pointer(&mut s, PointerKind::Up, 140.0, 125.0);
+    assert_eq!(s.doc().unwrap().doc.artboards.len(), 3, "each single click fits one artboard");
+}
+
+#[test]
+fn double_click_on_an_object_fits_once_drops_overlaps_and_skips_options() {
+    for suppress in [false, true] {
+        let (mut s, id) = fixture(100.0, 100.0);
+        s.execute("artboard.new", &json!({"x": 2000.0, "y": 0.0, "width": 80.0, "height": 40.0, "name": "Far"})).unwrap();
+        // Shares only the fitted rectangle's right edge: not an overlap.
+        s.execute("artboard.new", &json!({"x": 205.0, "y": 95.0, "width": 40.0, "height": 40.0, "name": "Touch"})).unwrap();
+        // Crosses the fitted rectangle: a partial overlap, deleted with the board that covers it.
+        s.execute("artboard.new", &json!({"x": 180.0, "y": 150.0, "width": 40.0, "height": 40.0, "name": "Overlap"})).unwrap();
+        let before = s.doc().unwrap().doc.clone();
+        let sel = s.doc().unwrap().selection.clone();
+        let history = s.doc().unwrap().history.undo.len();
+        let reqs = double_click(&mut s, 140.0, 125.0, suppress);
+        assert!(reqs.iter().all(|r| !is_dialog(r)), "no Artboard Options, {reqs:?}");
+        let st = s.doc().unwrap();
+        let fitted = Rect::new(95.0, 95.0, 205.0, 165.0);
+        let rects: Vec<_> = st.doc.artboards.iter().map(|a| a.rect).collect();
+        assert_eq!(rects.iter().filter(|r| **r == fitted).count(), 1, "one fitted artboard, suppress {suppress}: {rects:?}");
+        assert!(!rects.contains(&Rect::new(0.0, 0.0, 500.0, 500.0)), "the covering artboard is gone: {rects:?}");
+        assert!(!rects.contains(&Rect::new(180.0, 150.0, 220.0, 190.0)), "a partial overlap is gone: {rects:?}");
+        assert!(rects.contains(&Rect::new(2000.0, 0.0, 2080.0, 40.0)), "a board that does not overlap stays");
+        assert!(rects.contains(&Rect::new(205.0, 95.0, 245.0, 135.0)), "an edge-to-edge board stays");
+        assert_eq!(rects.len(), 3, "fitted, the edge-touch board and the far board: {rects:?}");
+        assert_eq!(st.doc.bounds_of(&[id], true), Some(fitted));
+        assert_eq!(json!(st.doc.layers), json!(before.layers));
+        assert_eq!(json!(st.selection), json!(sel));
+        let added = if suppress { 1 } else { 2 };
+        let steps = added + 1;
+        assert_eq!(st.history.undo.len(), history + steps, "create, then delete the overlaps");
+        for _ in 0..steps {
+            s.execute("edit.undo", &json!({})).unwrap();
+        }
+        assert_eq!(json!(s.doc().unwrap().doc), json!(before));
+        assert_eq!(json!(s.doc().unwrap().selection), json!(sel));
+    }
+}
+
+#[test]
+fn double_click_replaces_a_lone_artboard_that_does_not_overlap() {
+    for suppress in [false, true] {
+        let (mut s, _) = fixture(100.0, 100.0);
+        s.execute("artboard.setProps", &json!({"index": 0, "x": 2000.0, "y": 0.0, "width": 80.0, "height": 40.0})).unwrap();
+        let before = s.doc().unwrap().doc.clone();
+        let history = s.doc().unwrap().history.undo.len();
+        let reqs = double_click(&mut s, 140.0, 125.0, suppress);
+        assert!(reqs.iter().all(|r| !is_dialog(r)));
+        let rects: Vec<_> = s.doc().unwrap().doc.artboards.iter().map(|a| a.rect).collect();
+        assert_eq!(rects, vec![Rect::new(95.0, 95.0, 205.0, 165.0)], "the only other artboard goes too, suppress {suppress}: {rects:?}");
+        let steps = if suppress { 2 } else { 3 };
+        assert_eq!(s.doc().unwrap().history.undo.len(), history + steps);
+        for _ in 0..steps {
+            s.execute("edit.undo", &json!({})).unwrap();
+        }
+        assert_eq!(json!(s.doc().unwrap().doc), json!(before));
+    }
+}
+
+#[test]
+fn double_click_on_a_group_fits_the_group_and_a_lone_double_click_is_one_undo_step() {
+    let (mut s, _) = fixture(100.0, 100.0);
+    let a = s.execute("shape.rectangle", &json!({"x": 120, "y": 110, "width": 30, "height": 30})).unwrap()["id"].as_u64().unwrap();
+    let b = s.execute("shape.rectangle", &json!({"x": 250, "y": 120, "width": 40, "height": 60})).unwrap()["id"].as_u64().unwrap();
+    s.execute("select.set", &json!({"ids": [a, b]})).unwrap();
+    s.execute("object.group", &json!({})).unwrap();
+    let group = s.doc().unwrap().selection.objects[0];
+    let expected = s.doc().unwrap().doc.bounds_of(&[group], true).unwrap();
+    let before = s.doc().unwrap().doc.clone();
+    let history = s.doc().unwrap().history.undo.len();
+    let reqs = pointer_reqs(&mut s, PointerKind::DoubleClick, 135.0, 125.0);
+    assert!(reqs.iter().all(|r| !is_dialog(r)));
+    assert_eq!(s.doc().unwrap().doc.artboards.len(), 1);
+    assert_eq!(s.doc().unwrap().doc.artboards[0].rect, expected);
+    assert_eq!(s.doc().unwrap().history.undo.len(), history + 1, "the new artboard and the deletion are one undo step");
+    s.execute("edit.undo", &json!({})).unwrap();
+    assert_eq!(json!(s.doc().unwrap().doc), json!(before));
+}
+
+#[test]
+fn double_click_on_empty_artboard_space_opens_options_and_changes_nothing() {
+    let (mut s, _) = fixture(100.0, 100.0);
+    let before = s.doc().unwrap().doc.clone();
+    let history = s.doc().unwrap().history.undo.len();
+    let reqs = pointer_reqs(&mut s, PointerKind::DoubleClick, 300.0, 300.0);
+    assert!(reqs.iter().any(is_dialog), "{reqs:?}");
+    assert_eq!(json!(s.doc().unwrap().doc), json!(before));
+    assert_eq!(s.doc().unwrap().history.undo.len(), history);
 }
