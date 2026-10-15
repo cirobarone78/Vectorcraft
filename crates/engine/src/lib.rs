@@ -1090,6 +1090,9 @@ pub struct Session {
     /// Envelope Options with no envelope selected: the options and fidelity new envelopes get
     /// (`None`: the reference app's defaults, fidelity 50); not saved.
     pub(crate) envelope_defaults: Option<(vectorcraft_doc::live::EnvelopeOptions, f64)>,
+    /// The font, style and size last set on type, which the Type tools give new type (#1655);
+    /// not saved.
+    pub(crate) type_defaults: vectorcraft_tools::TypeDefaults,
     /// The Liquify stroke the last live preview applied, which the next sample of the drag goes on
     /// from ([`cmd::distortcmds::LiquifyStroke`]).
     pub(crate) liquify_stroke: Option<Box<cmd::distortcmds::LiquifyStroke>>,
@@ -1163,6 +1166,7 @@ impl Session {
             recovery: Default::default(),
             in_tool_actions: false,
             envelope_defaults: None,
+            type_defaults: Default::default(),
             liquify_stroke: None,
             plane_widget_press: false,
             ruler_guide: None,
@@ -1877,6 +1881,8 @@ mod tests_nativefile;
 mod tests_newart;
 #[cfg(test)]
 mod tests_newdoc;
+#[cfg(test)]
+mod tests_newtypefont;
 #[cfg(test)]
 mod tests_objexpand;
 #[cfg(test)]
