@@ -325,6 +325,7 @@
 	Fit Headline	제목에 맞추기
 	Decrease Font Size	글꼴 크기 줄이기
 	Increase Font Size	글꼴 크기 키우기
+	Reset Tracking and Kerning	자간 및 커닝 재설정
 	Step Type	단계별 문자
 	Find Font…	글꼴 찾기…
 	Change Case	대소문자 변경
@@ -470,6 +471,7 @@
 	Monitor RGB	모니터 RGB
 	Color blindness – Protanopia-type	색맹 – 적색맹 유형
 	Color blindness – Deuteranopia-type	색맹 – 녹색맹 유형
+	Color blindness – Tritanopia-type	색맹 – 청색맹 유형
 	Customize…	사용자 지정…
 	Proof Colors	교정 색상
 	Zoom In	확대
@@ -668,6 +670,7 @@
 	Auto Color	자동 색상
 	Automatic	자동
 	Isolate Selected Group	선택한 그룹 격리
+	Isolate Selected Object	선택한 개체 격리
 	Exit Isolation Mode	격리 모드 종료
 	Make Clipping Mask	클리핑 마스크 만들기
 	Release Clipping Mask	클리핑 마스크 해제
@@ -1129,6 +1132,7 @@
 	DXF Options	DXF 옵션
 	DXF Options Dialog	DXF 옵션 대화상자
 	Darken	어둡게
+	Darkness	어둡기
 	Dashed	점선
 	Dashed Line	점선
 	Data Recovery	데이터 복구
@@ -1375,6 +1379,9 @@
 	Export:	내보내기:
 	Export…	내보내기…
 	Eyedropper	스포이드
+	Sample Color from Screen	화면에서 색상 추출
+	This system has no screen color sampler	이 시스템에는 화면 색상 추출기가 없습니다
+	The active document changed while the screen color sampler was open	화면 색상 추출기가 열려 있는 동안 활성 문서가 바뀌었습니다
 	Eyedropper Applies:	스포이드 적용 대상:
 	Eyedropper Options	스포이드 옵션
 	Eyedropper Picks Up:	스포이드 추출 대상:
@@ -1400,6 +1407,7 @@
 	Fill Rule	칠 규칙
 	Fill and Stroke	칠과 선
 	Fill new strokes	새 선 칠하기
+	Keep selected	선택 유지
 	Fill:	칠:
 	Find	찾기
 	Find Font	글꼴 찾기
@@ -2087,6 +2095,7 @@
 	Panel Options…	패널 옵션…
 	Panel menu	패널 메뉴
 	Panels	패널
+	Panels Except Tools and Control	도구와 컨트롤을 제외한 패널
 	Paragraph Style Options	단락 스타일 옵션
 	Password	암호
 	Paste Offset	붙여넣기 간격
@@ -3805,6 +3814,8 @@ theme	Appearance	외관
 @msg	its page has text, and its layers have no text objects to put it in	페이지에 텍스트가 있지만 레이어에는 이를 넣을 텍스트 개체가 없습니다
 @msg	the art on them differs from the page's in {_1}% of it	이들의 아트웍이 페이지와 {_1}% 다릅니다
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	이들의 아트웍이 페이지와 {_1}% 다릅니다. 그래도 편집 데이터에서 가져왔습니다
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	파일의 레이어를 읽지 못했습니다({_1}). 페이지로 하나의 레이어에 가져옵니다
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	편집 데이터에서 파일의 레이어를 읽지 못했습니다({_1}). PDF 부분에서 가져옵니다
 @msg	its Windows metafile preview was opened instead, which may simplify the art	대신 Windows 메타파일 미리 보기를 열었으며, 아트웍이 단순화될 수 있습니다
 @msg	its preview was placed instead, at screen resolution	대신 미리 보기를 화면 해상도로 가져왔습니다
 @msg	shadings of more than 4096 patches or triangles were left out	패치나 삼각형이 4096개를 넘는 셰이딩은 제외했습니다
@@ -3885,6 +3896,9 @@ theme	Appearance	외관
 @msg	{label}…	{label}…
 @msg	no blend options	혼합 옵션이 없습니다
 @msg	bad color {v}	잘못된 색상 {v}
+@msg	the Color Picker is not open	색상 피커가 열려 있지 않습니다
+@msg	the screen color sampler is already open	화면 색상 추출기가 이미 열려 있습니다
+@msg	this system has no screen color sampler	이 시스템에는 화면 색상 추출기가 없습니다
 @msg	Corners edits the corners of a path	모퉁이는 패스의 모퉁이를 편집합니다
 @msg	give corners of the path: anchors where its sides meet at an angle	패스의 모퉁이, 즉 변이 각을 이루며 만나는 앵커를 지정하세요
 @msg	select one path, or give its `id`	패스를 하나 선택하거나 `id`를 지정하세요
@@ -4408,3 +4422,4 @@ lighting	Light	광원
 @msg	Unknown unit	알 수 없는 단위
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	열린 프로파일의 원형 끝을 닫습니다. 부분 회전에서는 절단 측면이 열린 상태로 유지됩니다.
+	Distance	거리

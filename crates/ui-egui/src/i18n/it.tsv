@@ -484,6 +484,7 @@
 	Color bars	Barre colore
 	Color blindness – Deuteranopia-type	Daltonismo – tipo deuteranopia
 	Color blindness – Protanopia-type	Daltonismo – tipo protanopia
+	Color blindness – Tritanopia-type	Daltonismo – tipo tritanopia
 	Color Burn	Brucia colore
 	Color conversion:	Conversione colore:
 	Color Dodge	Scherma colore
@@ -652,6 +653,7 @@
 	Cyan	Ciano
 	Dark	Scuro
 	Darken	Scurisci
+	Darkness	Oscurità
 	dash	trattino
 	Dash Pattern	Schema del tratteggio
 	Dashed	Tratteggiato
@@ -1005,6 +1007,9 @@
 	Export…	Esporta…
 	Extrude & Bevel…	Estrusione e smusso…
 	Eyedropper	Contagocce
+	Sample Color from Screen	Campiona colore dallo schermo
+	This system has no screen color sampler	Questo sistema non ha un campionatore di colore dello schermo
+	The active document changed while the screen color sampler was open	Il documento attivo è cambiato mentre il campionatore di colore dello schermo era aperto
 	Eyedropper Applies:	Il contagocce applica:
 	Eyedropper Options	Opzioni contagocce
 	Eyedropper Picks Up:	Il contagocce preleva:
@@ -1036,6 +1041,7 @@
 	Fill (X), double-click for the Color Picker	Riempimento (X), fai doppio clic per il selettore colore
 	Fill and Stroke	Riempimento e traccia
 	Fill new strokes	Riempi nuove tracce
+	Keep selected	Mantieni selezionato
 	Fill Color	Colore riempimento
 	Fill New Type Objects With Placeholder Text	Riempi i nuovi oggetti di testo con testo segnaposto
 	Fill Rule	Regola di riempimento
@@ -1059,6 +1065,7 @@
 	Fit Headline	Adatta titolo
 	Decrease Font Size	Riduci dimensione font
 	Increase Font Size	Aumenta dimensione font
+	Reset Tracking and Kerning	Reimposta spaziatura caratteri e crenatura
 	Spacing	Spaziatura
 	Step Type	Dimensione testo a incrementi
 	Fit in View	Adatta alla vista
@@ -2018,6 +2025,7 @@
 	Panel menu	Menu del pannello
 	Panel Options…	Opzioni pannello…
 	Panels	Pannelli
+	Panels Except Tools and Control	Pannelli tranne Strumenti e Controllo
 	Paragraph	Paragrafo
 	Paragraph Style	Stile paragrafo
 	Paragraph Style Options	Opzioni stile paragrafo
@@ -3423,6 +3431,7 @@ imageTrace	Outline	Contorno
 	 to set spacing and orientation	 per impostare spaziatura e orientamento
 	:	:
 	Isolate Selected Group	Isola gruppo selezionato
+	Isolate Selected Object	Isola oggetto selezionato
 	Release Clipping Mask	Rilascia maschera di ritaglio
 	Make Compound Path	Crea tracciato composto
 	Release Compound Path	Rilascia tracciato composto
@@ -3508,6 +3517,8 @@ axis	Both	Entrambi
 @msg	its type is to come in as outlines, which only its page has	il suo testo deve arrivare come contorni, che ha solo la sua pagina
 @msg	the art on them differs from the page's in {_1}% of it	l'illustrazione dei livelli differisce da quella della pagina per il {_1}% della sua superficie
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	l'illustrazione dei livelli differisce da quella della pagina per il {_1}% della sua superficie: provengono comunque dai suoi dati di modifica
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	i livelli del file non sono stati letti ({_1}): si apre come la sua pagina, in un solo livello
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	i livelli del file non sono stati letti dai suoi dati di modifica ({_1}): provengono dalla sua parte PDF
 @msg	`to` must be "corner" or "smooth"	`to` deve essere "corner" o "smooth"
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	I file BMP sono RGB o in scala di grigi: colorModel rgb o gray
 @msg	Blend colors: select at least three objects with filled colours	Fondi colori: seleziona almeno tre oggetti con riempimento colore
@@ -3650,6 +3661,9 @@ axis	Both	Entrambi
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	axis deve essere "vertical", "horizontal" o un angolo in gradi, non `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	sfondo {other}: transparent, white, black o un colore come "#ff8800"
 @msg	bad color {v}	colore non valido {v}
+@msg	the Color Picker is not open	il Selettore colore non è aperto
+@msg	the screen color sampler is already open	il campionatore di colore dello schermo è già aperto
+@msg	this system has no screen color sampler	questo sistema non ha un campionatore di colore dello schermo
 @msg	bad colour `{hex}` (#rrggbb)	colore non valido `{hex}` (#rrggbb)
 @msg	bad page tree	albero delle pagine non valido
 @msg	bad shortcut	scelta rapida non valida
@@ -4444,3 +4458,4 @@ lighting	Light	Luce
 @msg	Unknown unit	Unità sconosciuta
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Chiude le estremità circolari dei profili aperti. Le rotazioni parziali mantengono aperti i lati di taglio.
+	Distance	Distanza

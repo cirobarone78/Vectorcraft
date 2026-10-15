@@ -114,9 +114,12 @@ pub(crate) fn slot_frame(name: Option<&str>) -> usize {
     name.and_then(|n| n.strip_prefix(TEXT_SLOT)).and_then(|rest| rest.split_once(':')).and_then(|(_, f)| f.parse().ok()).unwrap_or(0)
 }
 
-/// Read the structure of the editing data `data`.
-pub fn read(data: &[u8]) -> Result<Structure, String> {
+/// Read the structure of the editing data `data`, applying the file's `%AI24_LargeCanvasScale` only
+/// when `large_canvas` is set: an EPS's page is drawn at the full size, but a `.ai`'s PDF part may
+/// keep the reduced one, which the PDF import reads as it is (#2031).
+pub fn read(data: &[u8], large_canvas: bool) -> Result<Structure, String> {
     let mut r = Reader::new(data);
+    r.large_canvas = large_canvas.then_some(1.0);
     r.run()?;
     r.finish()
 }
@@ -391,10 +394,14 @@ struct Reader<'a> {
     /// The artboard's size and centre in files without artboards or crop marks.
     art_size: Option<(f64, f64)>,
     template_center: Option<(f64, f64)>,
+    /// `%AI24_LargeCanvasScale`: a Large Canvas document's editing data is written at 1/N scale
+    /// (see [`Reader::ensure_space`]); 1 (no scaling) when the file doesn't declare one, `None`
+    /// when the declared factor is not applied ([`read`]).
+    large_canvas: Option<f64>,
     /// This reader reads a pattern's definition (see [`Reader::define_pattern`]).
     pattern: Option<PatternHead>,
-    /// The tile's top left (y down) of each pattern read, by name.
-    pattern_tiles: HashMap<String, Point>,
+    /// The tile (y down) of each pattern read, by name.
+    pattern_tiles: HashMap<String, Rect>,
     /// The legacy text object being read (`To` … `TO`), and the modal type attributes.
     text: Option<legacy_text::LegacyText>,
     type_state: legacy_text::TypeState,
@@ -525,6 +532,7 @@ impl<'a> Reader<'a> {
             slot_names: HashMap::new(),
             art_size: None,
             template_center: None,
+            large_canvas: None,
             pattern: None,
             pattern_tiles: HashMap::new(),
             text: None,
@@ -660,6 +668,16 @@ impl<'a> Reader<'a> {
         } else if let Some(v) = line.strip_prefix("AI3_TemplateBox:") {
             self.template_center = two(v);
             self.template = four(v).or(self.template);
+        } else if let Some(v) = line.strip_prefix("AI24_LargeCanvasScale:") {
+            // Illustrator's Large Canvas writes the editing data (art and boxes) at 1/N scale, N
+            // being this; the printed page applies the same factor, so the art reaches the page's
+            // size once it is applied to the art space ([`Self::ensure_space`]). A value outside
+            // the range Illustrator writes is left alone.
+            if let (Some(scale), Ok(n)) = (&mut self.large_canvas, v.trim().parse::<f64>())
+                && (1.0..=100.0).contains(&n)
+            {
+                *scale = n;
+            }
         } else if let Some(v) = line.strip_prefix("AI9_ColorModel:") {
             self.color_model = Some(v.trim() == "2");
         }
@@ -721,7 +739,7 @@ impl<'a> Reader<'a> {
         let art: Vec<Arc<Node>> = frame.children.iter().map(|n| Arc::new(self.doc.reid(n))).collect();
         let mut def = PatternDef::new(&head.name, art);
         def.tile = FLIP.transform_rect_bbox(tile);
-        if self.pattern_tiles.insert(def.name.clone(), def.tile.origin()).is_some() {
+        if self.pattern_tiles.insert(def.name.clone(), def.tile).is_some() {
             self.doc.patterns.retain(|p| p.name != def.name);
         }
         self.doc.patterns.push(def);
@@ -1265,12 +1283,15 @@ impl<'a> Reader<'a> {
         if bbox.width() <= 0.0 || bbox.height() <= 0.0 {
             return Ok(());
         }
-        // The art's own box onto the object's box (its measure of the same art), upside down:
-        // the object's space has y down, and the PDF's content is kept in its own y-up
-        // coordinates, so the PDF's bottom is the top of the box.
-        let fit = Affine::translate((target.x0, target.y1))
-            * Affine::scale_non_uniform(target.width() / bbox.width(), -target.height() / bbox.height())
-            * Affine::translate((-bbox.x0, -bbox.y0));
+        // The art's own box onto the object's box (its measure of the same art). The PDF importer
+        // hands the art back as the page shows it, and it keeps that orientation unless its
+        // placement mirrors it (a negative determinant): the usual `/RTransform` `1 0 0 -1 …` with
+        // the origin's flip doesn't, and the art then shows as the file's own PDF part draws it.
+        let fit = if place.determinant() < 0.0 {
+            Affine::translate((target.x0, target.y1)) * Affine::scale_non_uniform(target.width() / bbox.width(), -target.height() / bbox.height())
+        } else {
+            Affine::translate((target.x0, target.y0)) * Affine::scale_non_uniform(target.width() / bbox.width(), target.height() / bbox.height())
+        } * Affine::translate((-bbox.x0, -bbox.y0));
         for n in &mut art {
             n.transform(fit, true);
             // The PDF's swatches stay with it: its colours keep their values, unlinked.
@@ -1390,13 +1411,15 @@ impl<'a> Reader<'a> {
             return;
         }
         let name = vals.iter().find_map(|v| if let V::Str(_) = v { v.text() } else { None });
-        let Some(origin) = name.as_deref().and_then(|n| self.pattern_tiles.get(n)).map(|p| p.to_vec2()) else {
+        let Some(tile) = name.as_deref().and_then(|n| self.pattern_tiles.get(n)).copied() else {
             self.unreadable("pattern fills");
             return;
         };
         let matrix = vals.iter().rev().find_map(|v| if let V::Arr(a) = v { paint::affine(&Self::nums(a)) } else { None });
-        // The tile's art (y down from the tile's top left) → the pattern's space → art space.
-        let xf = self.space() * matrix.unwrap_or(Affine::IDENTITY) * FLIP * Affine::translate(origin);
+        // The tile's art (y down from the tile's top left) → the pattern's space → art space. The
+        // tile's lower left is the pattern's origin wherever the definition drew it, as the file's
+        // PDF part tiles it.
+        let xf = self.space() * matrix.unwrap_or(Affine::IDENTITY) * FLIP * Affine::translate((0.0, -tile.height()));
         if xf.determinant().abs() < 1e-12 || !xf.as_coeffs().iter().all(|v| v.is_finite()) {
             self.unreadable("pattern fills");
             return;
@@ -1858,14 +1881,17 @@ impl<'a> Reader<'a> {
         Some(Rect::new(x0, y0, x1, y1)).filter(|r| r.width() > 0.0 && r.height() > 0.0)
     }
 
-    /// Art space → the document (fixed when the art starts, from the artboards read by then).
+    /// Art space → the document (fixed when the art starts, from the artboards read by then). A
+    /// Large Canvas editing copy is written at 1/N scale ([`Self::large_canvas`]): the factor makes
+    /// its art and boxes reach the page's size, which is what the page it is opened beside holds.
     fn ensure_space(&mut self) -> Affine {
         if let Some(m) = self.to_doc {
             return m;
         }
         let first = self.first_board().or_else(|| self.bbox_board());
         let top_left = first.map_or(Point::new(0.0, 792.0), |r| Point::new(r.x0, r.y1));
-        let m = Affine::new([1.0, 0.0, 0.0, -1.0, -top_left.x, top_left.y]);
+        let s = self.large_canvas.unwrap_or(1.0);
+        let m = Affine::new([s, 0.0, 0.0, -s, -s * top_left.x, s * top_left.y]);
         self.to_doc = Some(m);
         m
     }
