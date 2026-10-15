@@ -360,3 +360,16 @@ Forks and modified versions must remove them.
   <a href="https://getartcraft.com/"><img alt="ArtCraft" src="docs/brand/artcraft-mark.svg" width="28"></a><br>
   <sub>Made by the <a href="https://getartcraft.com/">ArtCraft</a> team and community.</sub>
 </p>
+
+## Linux window controls
+
+Linux desktop builds enable winit's Adwaita client-side frame on GNOME/Wayland,
+where the compositor does not provide server-side decorations. Its minimize,
+maximize/restore and close icons are drawn as vectors, so the close button does
+not depend on a font containing a particular character. The frame follows the
+desktop's button layout; X11 and compositors offering server-side decorations
+keep their window manager's frame.
+
+The system title bar is the Linux default. An explicitly saved System Title Bar
+preference is retained; enable that preference and restart to switch an existing
+custom-frame setup to the toolkit frame.

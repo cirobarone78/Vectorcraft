@@ -1190,8 +1190,9 @@ mod tests {
 
     #[test]
     fn without_the_preference_the_mark_stays() {
-        // The default (e.g. the web build): no custom bar, no preference.
-        let app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        // An embedder can explicitly keep the in-app mark without a native frame.
+        let mut app = crate::VectorcraftApp::new(Session::new(), Default::default());
+        app.run("prefs.set", json!({"key": "systemTitleBar", "value": false})).unwrap();
         assert!(!super::system_title_bar(&app));
     }
 
