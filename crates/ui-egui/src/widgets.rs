@@ -90,12 +90,12 @@ fn flat_fill(ui: &Ui, rect: Rect, resp: &Response) {
 /// Blue call-to-action pill (dialog OK/Create).
 pub fn primary_button(ui: &mut Ui, text: &str) -> Response {
     let t = Tokens::get(ui.ctx());
-    let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), Color32::WHITE);
+    let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), t.on_accent);
     let w = galley.size().x + 32.0;
     let (rect, resp) = ui.allocate_exact_size(vec2(w.max(72.0), 28.0), Sense::click());
     let bg = if resp.hovered() { t.accent } else { t.accent_strong };
     ui.painter().rect_filled(rect, CornerRadius::same(14), bg);
-    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, Color32::WHITE);
+    ui.painter().galley(rect.center() - galley.size() / 2.0, galley, t.on_accent);
     resp
 }
 

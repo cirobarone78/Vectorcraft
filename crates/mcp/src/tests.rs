@@ -676,6 +676,8 @@ fn remote_does_not_send_on_a_connection_with_a_stray_line() {
     let addr = listener.local_addr().unwrap().to_string();
     let mut remote = Remote::connect(&addr).unwrap();
     let (mut stale, _) = listener.accept().unwrap();
+    // Configure the live socket: macOS can reject setting a timeout after the peer resets it.
+    stale.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
     writeln!(stale, "{}", json!({"ok": false, "error": "idle"})).unwrap();
     let probe = remote.connection_probe();
     probe.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
@@ -693,9 +695,13 @@ fn remote_does_not_send_on_a_connection_with_a_stray_line() {
     assert_eq!(remote.call("document.inspect", json!({})), Ok(json!(7)));
     h.join().unwrap();
     // Nothing was written to the stale connection: it ends (or is reset, its line unread) without a byte.
-    stale.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
     let mut rest = String::new();
-    assert_eq!(BufReader::new(stale).read_line(&mut rest).unwrap_or(0), 0, "{rest}");
+    match BufReader::new(stale).read_line(&mut rest) {
+        Ok(0) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::ConnectionReset => {}
+        result => panic!("stale connection must end or reset without a request: {result:?}; {rest}"),
+    }
+    assert!(rest.is_empty(), "nothing may be sent on the stale connection: {rest}");
 }
 
 #[test]

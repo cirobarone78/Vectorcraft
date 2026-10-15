@@ -2013,7 +2013,7 @@ fn draw_overlays(p: &egui::Painter, xf: &Xf, overlays: &[Overlay], t: &Tokens, l
                 p.circle_filled(c, 5.0, Color32::from_rgba_unmultiplied(color[0], color[1], color[2], color[3]));
                 p.circle_stroke(c, 6.0, Stroke::new(1.0, Color32::from_gray(32)));
                 if *selected {
-                    p.circle_stroke(c, 8.0, Stroke::new(2.0, t.accent));
+                    p.circle_stroke(c, 8.0, Stroke::new(2.0, t.editing_accent()));
                 }
             }
         }

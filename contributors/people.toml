@@ -98,3 +98,6 @@ sync_github_name = false
 real_name = "Tomasz Lewandowski"
 display_name = "Tomasz Lewandowski"
 sync_github_name = false
+
+[people.pourie-he]
+sync_github_name = true

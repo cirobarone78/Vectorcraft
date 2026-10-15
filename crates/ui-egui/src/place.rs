@@ -406,8 +406,8 @@ pub fn paint_drop_highlight(app: &VectorcraftApp, ctx: &egui::Context, painter: 
         return;
     }
     let t = Tokens::get(ctx);
-    painter.rect_filled(rect, 0.0, t.accent.gamma_multiply(0.08));
-    painter.rect_stroke(rect.shrink(1.5), 0.0, egui::Stroke::new(3.0, t.accent), egui::StrokeKind::Inside);
+    painter.rect_filled(rect, 0.0, t.editing_accent().gamma_multiply(0.08));
+    painter.rect_stroke(rect.shrink(1.5), 0.0, egui::Stroke::new(3.0, t.editing_accent()), egui::StrokeKind::Inside);
 }
 
 // ---------- the Control bar ----------

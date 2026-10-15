@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use craft_ui::theme::SuitePalette;
 use egui::{Color32, CornerRadius, FontData, FontDefinitions, FontFamily, FontId, Stroke, TextStyle, Visuals};
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +57,7 @@ pub struct Tokens {
     pub tool_active: Color32,
     pub accent: Color32,
     pub accent_strong: Color32,
+    pub on_accent: Color32,
     pub row_selected: Color32,
     pub pasteboard: Color32,
     pub ruler: Color32,
@@ -96,6 +98,10 @@ pub struct Tokens {
 }
 
 impl Tokens {
+    /// Canvas editing cues keep their original colour independently of suite UI chrome.
+    pub(crate) fn editing_accent(&self) -> Color32 {
+        if self.accent == SuitePalette::ARTCRAFT_DARK.accent { Color32::from_rgb(55, 142, 240) } else { self.accent }
+    }
     pub fn for_brightness(b: Brightness) -> Self {
         let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
         let base = Tokens {
@@ -115,6 +121,7 @@ impl Tokens {
             tool_active: hex(0x1d1d1d),
             accent: hex(0x378ef0),
             accent_strong: hex(0x1473e6),
+            on_accent: Color32::WHITE,
             row_selected: hex(0x484b50),
             pasteboard: hex(0x1e1e1e),
             ruler: hex(0x2f2f2f),
@@ -141,8 +148,34 @@ impl Tokens {
             axis_y: hex(0x45af63),
             axis_z: hex(0x378ef0),
         };
+        let suite = SuitePalette::ARTCRAFT_DARK;
         match b {
-            Brightness::Dark => base,
+            // ArtCraft's first-party dark UI roles. Keep the measured brightness presets
+            // inheriting the original base below, so their colors stay independent.
+            Brightness::Dark => Tokens {
+                app_bar: suite.chrome,
+                panel: suite.panel,
+                panel_darker: suite.window,
+                input: suite.input,
+                input_border: suite.border,
+                border: suite.border,
+                divider: suite.border,
+                text: suite.text,
+                text_dim: suite.text_secondary,
+                text_disabled: suite.text_disabled,
+                icon: suite.text,
+                hover: suite.hover,
+                tool_active: suite.pressed,
+                accent: suite.accent,
+                accent_strong: suite.accent_hover,
+                on_accent: suite.on_accent,
+                row_selected: suite.selection,
+                button: suite.raised,
+                text_strong: suite.text_strong,
+                tab_strip: suite.chrome,
+                button_border: suite.border_strong,
+                ..base
+            },
             // Measured from Illustrator 2026 (plan/illustrator/10-observed-ui.md §1).
             Brightness::MediumDark => Tokens {
                 app_bar: hex(0x535353),
@@ -222,7 +255,7 @@ impl Tokens {
     }
 
     pub fn get(ctx: &egui::Context) -> Tokens {
-        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::NULL)).unwrap_or_else(|| Tokens::for_brightness(Brightness::MediumDark))
+        ctx.data(|d| d.get_temp::<Tokens>(egui::Id::NULL)).unwrap_or_else(|| Tokens::for_brightness(Brightness::Dark))
     }
     pub fn cr(&self) -> CornerRadius {
         CornerRadius::same(self.radius)
@@ -294,6 +327,7 @@ fn add_craft_fonts(fonts: &mut FontDefinitions) {
 /// Apply tokens to egui's global style.
 pub fn apply(ctx: &egui::Context, b: Brightness) {
     let t = Tokens::for_brightness(b);
+    let suite = SuitePalette::ARTCRAFT_DARK;
     ctx.data_mut(|d| d.insert_temp(egui::Id::NULL, t));
     let mut v = if t.dark { Visuals::dark() } else { Visuals::light() };
     v.panel_fill = t.panel;
@@ -303,8 +337,8 @@ pub fn apply(ctx: &egui::Context, b: Brightness) {
     v.window_stroke = Stroke::new(1.0, t.border);
     v.window_corner_radius = CornerRadius::same(6);
     v.menu_corner_radius = CornerRadius::same(6);
-    v.selection.bg_fill = t.accent.gamma_multiply(0.55);
-    v.selection.stroke = Stroke::new(1.0, t.accent);
+    v.selection.bg_fill = if b == Brightness::Dark { t.row_selected } else { t.accent.gamma_multiply(0.55) };
+    v.selection.stroke = Stroke::new(1.0, if b == Brightness::Dark { suite.selection_text } else { t.accent });
     v.hyperlink_color = t.accent;
     v.override_text_color = Some(t.text);
     v.popup_shadow = egui::epaint::Shadow { offset: [0, 4], blur: 14, spread: 0, color: Color32::from_black_alpha(if t.dark { 120 } else { 60 }) };
@@ -318,7 +352,7 @@ pub fn apply(ctx: &egui::Context, b: Brightness) {
     w.noninteractive.bg_stroke = Stroke::new(1.0, t.divider);
     w.inactive.bg_stroke = Stroke::NONE;
     w.hovered.bg_stroke = Stroke::new(1.0, t.input_border);
-    w.active.bg_stroke = Stroke::new(1.0, t.accent);
+    w.active.bg_stroke = Stroke::new(1.0, if b == Brightness::Dark { suite.focus } else { t.accent });
     ctx.set_visuals(v);
     ctx.global_style_mut(|s| {
         s.spacing.item_spacing = egui::vec2(6.0, 5.0);
@@ -341,6 +375,95 @@ pub fn apply(ctx: &egui::Context, b: Brightness) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn standard_dark_maps_shared_ui_roles_and_preserves_artwork() {
+        let suite = SuitePalette::ARTCRAFT_DARK;
+        let dark = Tokens::for_brightness(Brightness::Dark);
+        for (actual, expected) in [
+            (dark.app_bar, suite.chrome),
+            (dark.panel, suite.panel),
+            (dark.panel_darker, suite.window),
+            (dark.input, suite.input),
+            (dark.input_border, suite.border),
+            (dark.border, suite.border),
+            (dark.divider, suite.border),
+            (dark.text, suite.text),
+            (dark.text_dim, suite.text_secondary),
+            (dark.text_disabled, suite.text_disabled),
+            (dark.icon, suite.text),
+            (dark.hover, suite.hover),
+            (dark.tool_active, suite.pressed),
+            (dark.accent, suite.accent),
+            (dark.accent_strong, suite.accent_hover),
+            (dark.on_accent, suite.on_accent),
+            (dark.row_selected, suite.selection),
+            (dark.button, suite.raised),
+            (dark.text_strong, suite.text_strong),
+            (dark.tab_strip, suite.chrome),
+            (dark.button_border, suite.border_strong),
+        ] {
+            assert_eq!(actual, expected);
+        }
+        let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
+        for (actual, expected) in [
+            (dark.pasteboard, 0x1e1e1e),
+            (dark.ruler, 0x2f2f2f),
+            (dark.ruler_tick, 0x8a8a8a),
+            (dark.smart_guide, 0xff3dfc),
+            (dark.guide, 0x4affff),
+            (dark.selection, 0x4f80ff),
+            (dark.anchor_selected, 0x3d82ff),
+            (dark.highlight, 0xff3030),
+            (dark.bleed, 0xf03030),
+            (dark.error, 0xe34850),
+            (dark.warning, 0xf0a330),
+            (dark.axis_x, 0xef6058),
+            (dark.axis_y, 0x45af63),
+            (dark.axis_z, 0x378ef0),
+        ] {
+            assert_eq!(actual, hex(expected));
+        }
+        assert_eq!(dark.measure_bg, Color32::from_rgba_unmultiplied(92, 92, 92, 235));
+        assert_eq!(dark.editing_accent(), hex(0x378ef0));
+        assert_eq!(crate::state::UiState::default().brightness, Brightness::Dark);
+        let ctx = egui::Context::default();
+        apply(&ctx, Brightness::Dark);
+        let visuals = ctx.style_of(ctx.theme()).visuals.clone();
+        assert_eq!(visuals.selection.bg_fill, suite.selection);
+        assert_eq!(visuals.selection.stroke.color, suite.selection_text);
+        assert_eq!(visuals.widgets.active.bg_stroke, Stroke::new(1.0, suite.focus));
+        assert_eq!(visuals.widgets.inactive.bg_stroke, Stroke::NONE);
+        assert_eq!(visuals.widgets.inactive.bg_fill, suite.raised);
+        assert_eq!(visuals.widgets.hovered.bg_fill, suite.hover);
+        assert_eq!(visuals.widgets.active.bg_fill, suite.pressed);
+    }
+
+    #[test]
+    fn alternate_brightness_preserves_local_palette_and_selection_styles() {
+        let hex = |s: u32| Color32::from_rgb((s >> 16) as u8, (s >> 8) as u8, s as u8);
+        for (brightness, panel, input, text) in [
+            (Brightness::MediumDark, 0x535353, 0x454545, 0xd1d1d1),
+            (Brightness::MediumLight, 0xb8b8b8, 0xd6d6d6, 0x1f1f1f),
+            (Brightness::Light, 0xf0f0f0, 0xffffff, 0x1f1f1f),
+        ] {
+            let t = Tokens::for_brightness(brightness);
+            assert_eq!(t.panel, hex(panel), "{brightness:?}");
+            assert_eq!(t.input, hex(input), "{brightness:?}");
+            assert_eq!(t.text, hex(text), "{brightness:?}");
+            assert_eq!(t.accent, hex(0x378ef0), "{brightness:?}");
+            assert_eq!(t.editing_accent(), t.accent, "{brightness:?}");
+            assert_eq!(t.on_accent, Color32::WHITE, "{brightness:?}");
+            let ctx = egui::Context::default();
+            apply(&ctx, brightness);
+            let visuals = ctx.style_of(ctx.theme()).visuals.clone();
+            assert_eq!(visuals.panel_fill, t.panel, "{brightness:?}");
+            assert_eq!(visuals.selection.bg_fill, t.accent.gamma_multiply(0.55), "{brightness:?}");
+            assert_eq!(visuals.selection.stroke.color, t.accent, "{brightness:?}");
+            assert_eq!(visuals.widgets.active.bg_stroke, Stroke::new(1.0, t.accent), "{brightness:?}");
+            assert_eq!(visuals.widgets.inactive.bg_stroke, Stroke::NONE, "{brightness:?}");
+        }
+    }
 
     #[test]
     fn brightness_roundtrip() {
