@@ -486,6 +486,12 @@ pub enum NodeKind {
     /// A placed document: an artboard of another VectorCraft file, linked and locked (see
     /// [`crate::placed_document`]).
     PlacedDocument(Box<crate::placed_document::PlacedDocument>),
+    /// Object › Intertwine: the objects keep their own stacking order, except where one of them
+    /// is drawn over the others: the area [`NodeExtras::intertwine`] of that member (see
+    /// [`crate::intertwine`]).
+    Intertwine {
+        children: Vec<Arc<Node>>,
+    },
 }
 
 fn yes() -> bool {
@@ -555,6 +561,9 @@ pub struct NodeExtras {
     pub slice: Option<Box<crate::SliceOptions>>,
     /// Object › Perspective: the perspective grid plane the object is attached to.
     pub perspective: Option<Box<crate::PerspectiveAttachment>>,
+    /// Object › Intertwine: as a member of an Intertwine group, the area (document coordinates,
+    /// filled non-zero) where this object is drawn over the group's other members.
+    pub intertwine: Option<Box<PathData>>,
     /// Dimension object: the live measurement it draws; its ordinary group children hold its
     /// exportable appearance (Object › Dimensions, the Dimension tool).
     pub dimension: Option<Box<crate::dimension::Dimension>>,
@@ -572,6 +581,7 @@ static NO_EXTRAS: NodeExtras = NodeExtras {
     attrs: None,
     slice: None,
     perspective: None,
+    intertwine: None,
     dimension: None,
 };
 
@@ -703,6 +713,7 @@ impl Serialize for Node {
             e.slice.is_none(),
             is_default(&self.bbox_angle),
             e.perspective.is_none(),
+            e.intertwine.is_none(),
             e.dimension.is_none(),
         ];
         let mut st = s.serialize_struct("Node", skips.iter().filter(|s| !**s).count())?;
@@ -738,6 +749,7 @@ impl Serialize for Node {
         field!("slice", &e.slice);
         field!("bbox_angle", &self.bbox_angle);
         field!("perspective", &e.perspective);
+        field!("intertwine", &e.intertwine);
         field!("dimension", &e.dimension);
         st.end()
     }
@@ -791,6 +803,8 @@ struct NodeWire {
     #[serde(default)]
     perspective: Option<Box<crate::PerspectiveAttachment>>,
     #[serde(default)]
+    intertwine: Option<Box<PathData>>,
+    #[serde(default)]
     dimension: Option<Box<crate::dimension::Dimension>>,
 }
 
@@ -807,6 +821,7 @@ impl From<NodeWire> for Node {
             attrs: w.attrs,
             slice: w.slice,
             perspective: w.perspective,
+            intertwine: w.intertwine,
             dimension: w.dimension,
         };
         Node {
@@ -893,7 +908,8 @@ impl Node {
             | NodeKind::Compound { children, .. }
             | NodeKind::Blend { children, .. }
             | NodeKind::Envelope { content: children, .. }
-            | NodeKind::Repeat(RepeatSpec { source: children, .. }) => Some(children),
+            | NodeKind::Repeat(RepeatSpec { source: children, .. })
+            | NodeKind::Intertwine { children } => Some(children),
             _ => None,
         }
     }
@@ -904,7 +920,8 @@ impl Node {
             | NodeKind::Compound { children, .. }
             | NodeKind::Blend { children, .. }
             | NodeKind::Envelope { content: children, .. }
-            | NodeKind::Repeat(RepeatSpec { source: children, .. }) => Some(children),
+            | NodeKind::Repeat(RepeatSpec { source: children, .. })
+            | NodeKind::Intertwine { children } => Some(children),
             _ => None,
         }
     }
@@ -972,6 +989,7 @@ impl Node {
             NodeKind::Mesh(_) => "Mesh",
             NodeKind::Repeat(r) => r.kind.label(),
             NodeKind::PlacedDocument(_) => "Placed Document",
+            NodeKind::Intertwine { .. } => "Intertwine",
         }
     }
     /// Name shown in the Layers panel: explicit name or `<Kind>`.
@@ -1083,6 +1101,8 @@ impl Node {
             // copies out by the source's bounds measured without the document.
             NodeKind::Repeat(r) => r.copies_bounds(union(&r.source)?),
             NodeKind::PlacedDocument(p) => Some(p.bounds()),
+            // The members drawn over the others are drawn where they are.
+            NodeKind::Intertwine { children } => union(children),
         }
     }
     /// Visual bounds: what the object paints, its strokes included (paths and compound paths
@@ -1117,6 +1137,7 @@ impl Node {
                     clip.geometric(symbols)
                 }
             }
+            NodeKind::Intertwine { children } => children.iter().fold(None, |acc, c| vectorcraft_geom::union_opt(acc, c.visual(symbols))),
             NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } => {
                 // The container's own strokes paint around its members.
                 let o = self.appearance.outset();
@@ -1212,7 +1233,10 @@ impl Node {
                     }
                 }
             }
-            NodeKind::Layer { children, .. } | NodeKind::Group { children, .. } | NodeKind::Compound { children, .. } => {
+            NodeKind::Layer { children, .. }
+            | NodeKind::Group { children, .. }
+            | NodeKind::Compound { children, .. }
+            | NodeKind::Intertwine { children } => {
                 for c in children.iter_mut() {
                     Arc::make_mut(c).transform_scaled(a, sc);
                 }
@@ -1265,6 +1289,10 @@ impl Node {
             && m.linked
         {
             Arc::make_mut(&mut m.art).transform_scaled(a, sc);
+        }
+        // The area where an Intertwine member is drawn over the others moves with it.
+        if let Some(area) = self.extras_if_any().and_then(|e| e.intertwine.as_mut()) {
+            area.transform(a);
         }
     }
     /// Visit this node and all descendants depth first (paint order).
@@ -1394,7 +1422,7 @@ impl Node {
                 let frame = shapes::rectangle(p.natural()).transformed(p.xf);
                 out.push((frame.to_bezpath(), FillRule::NonZero));
             }
-            NodeKind::Blend { .. } | NodeKind::Envelope { .. } | NodeKind::Mesh(_) | NodeKind::Repeat(_) => {
+            NodeKind::Blend { .. } | NodeKind::Envelope { .. } | NodeKind::Mesh(_) | NodeKind::Repeat(_) | NodeKind::Intertwine { .. } => {
                 crate::live::expand_deep(self, text).push_clip_shapes(text, out);
             }
         }
@@ -1809,6 +1837,9 @@ mod kind_de {
         Mesh(GradientMesh),
         Repeat(RepeatSpec),
         PlacedDocument(Box<crate::placed_document::PlacedDocument>),
+        Intertwine {
+            children: Vec<Arc<Node>>,
+        },
     }
 
     impl<'de> Deserialize<'de> for NodeKind {

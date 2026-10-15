@@ -4939,6 +4939,7 @@ dependencies = [
  "serde_json",
  "vectorcraft-color",
  "vectorcraft-doc",
+ "vectorcraft-effects",
  "vectorcraft-geom",
  "vectorcraft-pathops",
  "vectorcraft-text",
