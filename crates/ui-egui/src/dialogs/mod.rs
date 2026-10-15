@@ -34,6 +34,7 @@ pub mod flare_options;
 pub mod flatten;
 pub mod flattener_presets;
 mod form;
+pub(crate) mod free_distort;
 pub mod freehand;
 mod gradient_stop;
 pub mod graph_data;
