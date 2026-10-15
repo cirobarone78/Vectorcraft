@@ -33,6 +33,7 @@ mod halftone;
 pub mod help;
 pub mod importmatches;
 pub(crate) mod inline;
+mod intertwine;
 mod layer;
 mod layerpanel;
 pub mod library;
@@ -248,6 +249,7 @@ pub fn command_specs() -> &'static [CommandSpec] {
         v.extend(shaper::specs());
         v.extend(brushsym::specs());
         v.extend(patterncmds::specs());
+        v.extend(intertwine::specs());
         v.extend(prefscmds::specs());
         v.extend(distortcmds::specs());
         v.extend(paint::proxy_specs());
