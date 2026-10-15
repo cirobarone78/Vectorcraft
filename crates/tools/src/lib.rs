@@ -18,6 +18,7 @@ pub mod distort;
 pub mod draw2;
 pub mod extra;
 pub mod guides;
+pub mod intertwine;
 pub mod meshblend;
 pub mod meshedit;
 pub mod params;
@@ -616,6 +617,7 @@ pub fn create(id: &str) -> Box<dyn Tool> {
             .or_else(|| printtiling::create(other))
             .or_else(|| cropimage::create(other))
             .or_else(|| cut::create(other))
+            .or_else(|| intertwine::create(other))
             .unwrap_or_else(|| Box::new(NoopTool(tool_info(other).map(|t| t.id).unwrap_or("selection")))),
     }
 }
