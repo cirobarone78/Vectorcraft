@@ -17,15 +17,18 @@ pub enum VariableKind {
     Text,
     /// Whether bound objects show.
     Visibility,
+    /// A graph object's data (CSV of categories and series, as Graph Data uses).
+    Graph,
 }
 
 impl VariableKind {
-    /// Parse the `kind` of `variable.define`: `text` or `visibility` (`visible` is accepted
-    /// as the same thing, as the panel and the docs call it both).
+    /// Parse the `kind` of `variable.define`: `text`, `visibility` (`visible` is accepted
+    /// as the same thing, as the panel and the docs call it both), or `graph`.
     pub fn parse(s: &str) -> Option<Self> {
         match s.to_ascii_lowercase().as_str() {
             "text" => Some(Self::Text),
             "visibility" | "visible" => Some(Self::Visibility),
+            "graph" => Some(Self::Graph),
             _ => None,
         }
     }
@@ -35,6 +38,7 @@ impl VariableKind {
         match self {
             Self::Text => "text",
             Self::Visibility => "visibility",
+            Self::Graph => "graph",
         }
     }
 }
@@ -52,13 +56,18 @@ pub struct Variable {
 pub enum DataValue {
     Text(String),
     Visible(bool),
+    /// CSV of a graph's categories and series (same shape as Graph Data / `graph.setData`).
+    Graph(String),
 }
 
 impl DataValue {
     /// Whether this value fits the variable's kind (a dataset may carry values for
     /// variables of either kind; each binding takes what fits it).
     pub fn fits(&self, kind: VariableKind) -> bool {
-        matches!((self, kind), (Self::Text(_), VariableKind::Text) | (Self::Visible(_), VariableKind::Visibility))
+        matches!(
+            (self, kind),
+            (Self::Text(_), VariableKind::Text) | (Self::Visible(_), VariableKind::Visibility) | (Self::Graph(_), VariableKind::Graph)
+        )
     }
 }
 
@@ -184,6 +193,7 @@ impl Document {
         match (kind, &node.kind) {
             (VariableKind::Text, NodeKind::Text(t)) => Some(DataValue::Text(t.plain_text())),
             (VariableKind::Visibility, _) => Some(DataValue::Visible(node.visible)),
+            (VariableKind::Graph, _) => node.extras().graph.as_ref().map(|g| DataValue::Graph(g.to_csv())),
             (VariableKind::Text, _) => None,
         }
     }

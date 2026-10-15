@@ -612,3 +612,38 @@ fn ids_and_names_from_an_agent_are_checked() {
     assert!(s.execute("variable.delete", &json!({"names": []})).is_err());
     assert!(s.execute("variable.delete", &json!({"names": [5]})).is_err());
 }
+
+#[test]
+fn graph_variable_applies_csv_and_captures() {
+    let mut s = session();
+    let id = s
+        .execute(
+            "graph.create",
+            &json!({
+                "type": "column",
+                "x": 10,
+                "y": 10,
+                "width": 120,
+                "height": 80,
+                "csv": ",Sales\nA,1\nB,2"
+            }),
+        )
+        .unwrap()["id"]
+        .as_u64()
+        .unwrap();
+    s.execute("select.set", &json!({"ids": [id]})).unwrap();
+    s.execute("variable.makeGraphDynamic", &json!({})).unwrap();
+    let name = s.execute("variable.list", &json!({})).unwrap()["variables"][0]["name"].as_str().unwrap().to_string();
+    assert_eq!(s.execute("variable.list", &json!({})).unwrap()["variables"][0]["kind"], "graph");
+    s.execute("dataset.new", &json!({"name": "Alt", "values": {name.clone(): ",Sales\nA,10\nB,20"}})).unwrap();
+    let v = s.execute("dataset.select", &json!({"name": "Alt"})).unwrap();
+    assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(1), Some(0)));
+    let csv = s.doc().unwrap().doc.variable_value(NodeId(id), vectorcraft_doc::VariableKind::Graph).unwrap();
+    match csv {
+        vectorcraft_doc::DataValue::Graph(c) => assert!(c.contains("10") && c.contains("20"), "{c}"),
+        other => panic!("expected graph csv, got {other:?}"),
+    }
+    // Binding a non-graph is refused.
+    let r = rect(&mut s);
+    assert!(s.execute("variable.bind", &json!({"variable": name, "ids": [r.0]})).is_err());
+}
