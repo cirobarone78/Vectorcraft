@@ -357,6 +357,36 @@ fn transform_each_random_is_deterministic_with_seed() {
     assert!(x.x0.abs() <= 50.0 && x.width() == 100.0);
 }
 
+/// #1910: Transform Each's Reflect X flips left-right; Reflect Y flips top-bottom (same as
+/// Effect › Distort › Transform and Illustrator's Transform Each checkboxes).
+#[test]
+fn transform_each_reflect_x_flips_left_right_reflect_y_flips_top_bottom() {
+    let mut s = session();
+    // A right-pointing triangle: tip at x=100, base on the left.
+    let id =
+        id_of(&s.execute("path.create", &json!({"anchors": [{"x": 0, "y": 0}, {"x": 100, "y": 50}, {"x": 0, "y": 100}], "closed": true})).unwrap());
+    sel(&mut s, &[id]);
+    s.execute("object.transformEach", &json!({"reflectX": true})).unwrap();
+    let tip_x = match &node(&s, id).kind {
+        // The tip is the only vertex at y=50; Reflect X about the centre maps (100, 50) → (0, 50).
+        NodeKind::Path { path, .. } => path.subpaths[0].anchors.iter().find(|a| (a.p.y - 50.0).abs() < 1e-6).map(|a| a.p.x).unwrap_or(f64::NAN),
+        _ => panic!("expected a path"),
+    };
+    assert!((tip_x - 0.0).abs() < 1e-6, "reflectX must move the tip from x=100 to x=0, got {tip_x}");
+
+    s.execute("edit.undo", &json!({})).unwrap();
+    // A down-pointing tip at (50, 100); Reflect Y about the centre (50, 50) maps it to (50, 0).
+    let id2 =
+        id_of(&s.execute("path.create", &json!({"anchors": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 50, "y": 100}], "closed": true})).unwrap());
+    sel(&mut s, &[id2]);
+    s.execute("object.transformEach", &json!({"reflectY": true})).unwrap();
+    let tip_y = match &node(&s, id2).kind {
+        NodeKind::Path { path, .. } => path.subpaths[0].anchors.iter().find(|a| (a.p.x - 50.0).abs() < 1e-6).map(|a| a.p.y).unwrap_or(f64::NAN),
+        _ => panic!("expected a path"),
+    };
+    assert!((tip_y - 0.0).abs() < 1e-6, "reflectY must move the tip from y=100 to y=0, got {tip_y}");
+}
+
 /// Transform Each with its default values, or with any values that move nothing (both scales 100%,
 /// no move, rotation or reflection, Random or not), records no undo step and replies with the
 /// objects. With only a layer selected there is no object to transform: with Copy or without, it
@@ -386,6 +416,57 @@ fn transform_each_that_changes_nothing_records_no_undo_step() {
     let r = s.execute("object.transformEach", &json!({"copy": true})).unwrap();
     assert_eq!(r["ids"].as_array().unwrap().len(), 2);
     assert_eq!(history(&s), (before.0 + 1, 0, true));
+}
+
+/// #1732: Transform Again (⌘D) repeats a Transform Each — the same transform on the objects
+/// again, another copy when the Transform Each made copies — rather than an earlier transform.
+#[test]
+fn transform_again_repeats_transform_each() {
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
+    sel(&mut s, &[a]);
+    // An earlier Transform must not be what Transform Again repeats.
+    s.execute("object.transform", &json!({"matrix": [1, 0, 0, 1, 5, 5]})).unwrap();
+    s.execute("object.transformEach", &json!({"moveH": 50})).unwrap();
+    assert_eq!(bounds(&s, a), Rect::new(55.0, 5.0, 155.0, 105.0));
+    s.execute("object.transformAgain", &json!({})).unwrap();
+    assert_eq!(bounds(&s, a), Rect::new(105.0, 5.0, 205.0, 105.0), "50 pt more, not 5");
+    s.execute("object.transformAgain", &json!({})).unwrap();
+    assert_eq!(bounds(&s, a), Rect::new(155.0, 5.0, 255.0, 105.0), "again and again");
+    // With Copy, every Transform Again makes another copy, further on each time.
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
+    sel(&mut s, &[a]);
+    let r = s.execute("object.transformEach", &json!({"moveH": 50, "copy": true})).unwrap();
+    let first = NodeId(r["ids"][0].as_u64().unwrap());
+    assert_eq!(bounds(&s, first), Rect::new(50.0, 0.0, 150.0, 100.0));
+    let r = s.execute("object.transformAgain", &json!({})).unwrap();
+    let second = NodeId(r["ids"][0].as_u64().unwrap());
+    assert_ne!(second, first);
+    assert_eq!(bounds(&s, second), Rect::new(100.0, 0.0, 200.0, 100.0), "another copy, 50 pt further");
+    assert_eq!(bounds(&s, a), Rect::new(0.0, 0.0, 100.0, 100.0), "the original stays");
+    assert_eq!(bounds(&s, first), Rect::new(50.0, 0.0, 150.0, 100.0), "and the first copy too");
+}
+
+/// #1732: the Transform Each dialog previews through an interaction; OK commits it, and
+/// Transform Again repeats what the commit recorded. A preview that changed nothing doesn't take
+/// the record over (it records no undo step either).
+#[test]
+fn transform_again_repeats_a_committed_transform_each_preview() {
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 100.0, 100.0);
+    sel(&mut s, &[a]);
+    s.begin_interaction("Transform Each").unwrap();
+    s.preview("object.transformEach", &json!({"moveH": 50})).unwrap();
+    s.commit_interaction().unwrap();
+    assert_eq!(bounds(&s, a), Rect::new(50.0, 0.0, 150.0, 100.0));
+    s.execute("object.transformAgain", &json!({})).unwrap();
+    assert_eq!(bounds(&s, a), Rect::new(100.0, 0.0, 200.0, 100.0), "the dialog's Transform Each repeats");
+    s.begin_interaction("Transform Each").unwrap();
+    s.preview("object.transformEach", &json!({})).unwrap();
+    s.commit_interaction().unwrap();
+    s.execute("object.transformAgain", &json!({})).unwrap();
+    assert_eq!(bounds(&s, a), Rect::new(150.0, 0.0, 250.0, 100.0), "still the one that changed something");
 }
 
 #[test]

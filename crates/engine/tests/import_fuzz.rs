@@ -1330,6 +1330,28 @@ proptest! {
     }
 }
 
+/// A native file whose area type has 2^60 rows, 2^60 columns, or 2^32 of each (their product
+/// overflows) opens with 100 in place of each count over 100, and renders and exports.
+#[test]
+fn native_area_type_with_2_to_the_60_rows_or_columns_opens_renders_and_exports() {
+    let mut s = vectorcraft_engine::Session::new();
+    s.execute("file.new", &json!({"width": 400, "height": 300})).unwrap();
+    let made = s.execute("text.create", &json!({"x": 10, "y": 10, "text": "word ".repeat(40), "area": {"width": 300, "height": 120}})).unwrap();
+    let id = vectorcraft_doc::NodeId(made["id"].as_u64().unwrap());
+    let mut d = (*s.doc().unwrap().doc).clone();
+    for (rows, columns) in [(1 << 60, 1), (1, 1 << 60), (1 << 32, 1 << 32)] {
+        let Some(vectorcraft_doc::NodeKind::Text(t)) = d.node_mut(id).map(|n| &mut n.kind) else { panic!("area type") };
+        t.area.rows = rows;
+        t.area.columns = columns;
+        let file = vectorcraft_format::base64_encode(&vectorcraft_format::save(&d, false));
+        s.execute("document.open", &json!({"name": "x.vectorcraft", "dataBase64": file})).unwrap();
+        let opened = (*s.doc().unwrap().doc).clone();
+        let Some(vectorcraft_doc::NodeKind::Text(t)) = opened.node(id).map(|n| &n.kind) else { panic!("area type") };
+        assert_eq!((t.area.rows, t.area.columns), (rows.min(100), columns.min(100)));
+        survive("area type in 2^60 rows or columns", || Some(opened)).unwrap();
+    }
+}
+
 /// The rich document as EPS (with a preview, a thumbnail and the document it carries), and the
 /// document read back from it.
 fn eps_sample() -> Vec<u8> {
@@ -3425,4 +3447,19 @@ fn a_pattern_painting_its_own_tile_opens_without_the_paint() {
             symbols_survive("a pattern painting its own tile", doc, false);
         }
     });
+}
+
+/// A .ai cut short inside an array or dictionary of its PDF part (found by
+/// `ai_mutated_save_never_panics`): a value can't be read whole, and hayro's iterators over the
+/// array's items or the dictionary's entries would panic on it.
+#[test]
+fn ai_cut_inside_an_array_or_dictionary_opens_without_panicking() {
+    for flip in [None, Some((12262, b'/'))] {
+        let mut b = saved_ai();
+        if let Some((at, c)) = flip {
+            b[at] = c;
+        }
+        b.truncate(44902.min(b.len()));
+        survive("ai cut inside an array or dictionary", || vectorcraft_engine::cmd::fileio::load("saved.ai", &b).ok().map(|l| l.doc)).unwrap();
+    }
 }

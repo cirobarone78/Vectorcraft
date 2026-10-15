@@ -84,9 +84,10 @@ impl DataSet {
 ///
 /// An object may be driven by several variables — the reference app binds the selected object
 /// to the selected variable, one click at a time, and never says a second binding replaces the
-/// first — so a binding is a set. `dataset.select` applies them in the order the variables are
-/// defined, which is what makes two text variables on one object deterministic: the last one
-/// wins, and `applied` counts both.
+/// first — so a binding is a set. `dataset.select` applies the text values in the order the
+/// variables are defined, which is what makes two text variables on one object deterministic:
+/// the last one wins, and `applied` counts both. Of two visibility variables on one object, the
+/// last one defined wins too.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Variables {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -190,8 +191,9 @@ impl Document {
 
     /// The values a dataset captured right now: what each bound object holds, in the order the
     /// variables are defined. `dataset.capture` writes these into a new row and
-    /// `dataset.update` into the active one; the Variables panel compares the active row with
-    /// them to tell whether the art still matches what it says.
+    /// `dataset.update` into the active one, for the variables that row holds (`all: true` adds
+    /// the rest); the Variables panel compares the active row with them to tell whether the art
+    /// still matches what it says.
     pub fn captured_values(&self) -> BTreeMap<String, DataValue> {
         let mut out = BTreeMap::new();
         for v in &self.variables.variables {

@@ -49,6 +49,21 @@ pub fn painted_bounds(doc: &Document, n: &Node) -> Option<Rect> {
     brush_fx::cull_bounds(&doc.symbol_boxes(), n)
 }
 
+/// [`painted_bounds`] of `n` without the room it leaves for brush art past the brushed strokes of
+/// `n` and of a symbol instance's art (the brush art of the objects in a blend, envelope or repeat
+/// still counts). A group or layer without effects of its own is measured by its members, leaving
+/// out the transparent source art of a Shaper group as [`Node::visual_bounds_with`] does. Symbol
+/// instances are measured by their art in `symbols`.
+pub fn effect_bounds(symbols: &SymbolBoxes, n: &Node) -> Option<Rect> {
+    match &n.kind {
+        NodeKind::Layer { children, clip: false, .. } | NodeKind::Group { children, clip: false } if !fx::has_object_fx(n) => children
+            .iter()
+            .skip(usize::from(n.extras().shaper.is_some()))
+            .fold(None, |acc, c| vectorcraft_geom::union_opt(acc, effect_bounds(symbols, c))),
+        _ => fx::cull_bounds(symbols, n),
+    }
+}
+
 /// Largest raster an export may ask [`Renderer::render_region`] for, per side. The CPU rasteriser
 /// addresses at most `u16::MAX` pixels per side (and panics at that edge).
 pub const MAX_RASTER_SIDE: u32 = 32_768;
@@ -1359,15 +1374,18 @@ impl Renderer {
     /// object opacity without its opacity mask, or as drawn when its opacity and mask define the
     /// knockout shape), then adds itself: it composites against the group's backdrop instead of
     /// over the elements below it (the art below the group when the group is non-isolated and
-    /// drawn over a copy of it, see [`Self::group`]).
+    /// drawn over a copy of it, see [`Self::group`] and [`Self::knockout_over`]).
     fn draw_knockout(&mut self, ctx: &mut RenderContext, f: &Frame, children: &[Arc<Node>]) {
         let backdrop = self.backdrop.take();
         for c in Node::knockout_elements(children) {
             if self.skipped(f, c) {
                 continue;
             }
-            self.knockout_pass(ctx, f, c, Compose::DestOut, None);
-            self.knockout_pass(ctx, f, c, Compose::Plus, backdrop.as_ref());
+            self.knockout_pass(ctx, f, c, Compose::DestOut);
+            match &backdrop {
+                Some(b) => self.knockout_over(ctx, f, c, b),
+                None => self.knockout_pass(ctx, f, c, Compose::Plus),
+            }
         }
         self.backdrop = backdrop;
     }

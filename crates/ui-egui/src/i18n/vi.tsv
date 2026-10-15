@@ -570,6 +570,7 @@
 	Color bars	Thanh màu
 	Color blindness – Deuteranopia-type	Mù màu – loại Deuteranopia
 	Color blindness – Protanopia-type	Mù màu – loại Protanopia
+	Color blindness – Tritanopia-type	Mù màu – loại Tritanopia
 	Color Burn	Đốt màu
 	Color conversion:	Chuyển đổi màu:
 	Color Dodge	Tránh màu
@@ -764,6 +765,7 @@
 	Dark Strokes	Nét tối
 	Dark Strokes…	Nét tối…
 	Darken	Làm tối
+	Darkness	Độ tối
 	dash	nét đứt
 	Dash Pattern	Mẫu nét đứt
 	Dashed	Nét đứt
@@ -1168,6 +1170,9 @@
 	Export…	Xuất…
 	Extrude & Bevel…	Kéo dài & vát…
 	Eyedropper	Ống hút màu
+	Sample Color from Screen	Lấy mẫu màu từ màn hình
+	This system has no screen color sampler	Hệ thống này không có công cụ lấy mẫu màu trên màn hình
+	The active document changed while the screen color sampler was open	Tài liệu đang hoạt động đã thay đổi trong khi công cụ lấy mẫu màu trên màn hình đang mở
 	Eyedropper Applies:	Ống hút màu áp dụng:
 	Eyedropper Options	Tùy chọn Ống hút màu
 	Eyedropper Picks Up:	Ống hút màu lấy mẫu:
@@ -1202,6 +1207,7 @@
 	Fill Color	Màu tô
 	Fill Grid	Tô lưới
 	Fill new strokes	Tô nét mới
+	Keep selected	Giữ trạng thái đã chọn
 	Fill New Type Objects With Placeholder Text	Tô đối tượng chữ mới bằng văn bản giữ chỗ
 	Fill Rule	Quy tắc tô
 	Fill with Placeholder Text	Tô bằng văn bản giữ chỗ
@@ -1610,6 +1616,7 @@
 	Isolate Blending	Tách biệt hòa trộn
 	Isolate Group	Tách biệt nhóm
 	Isolate Selected Group	Tách biệt nhóm đã chọn
+	Isolate Selected Object	Tách biệt đối tượng đã chọn
 	Isometric Bottom	Đẳng góc dưới
 	Isometric Left	Đẳng góc trái
 	Isometric Right	Đẳng góc phải
@@ -2266,6 +2273,7 @@
 	Panel menu	Menu bảng
 	Panel Options…	Tùy chọn bảng…
 	Panels	Bảng
+	Panels Except Tools and Control	Bảng trừ Công cụ và Điều khiển
 	Paragraph	Đoạn văn
 	Paragraph Style	Kiểu đoạn văn
 	Paragraph Style Options	Tùy chọn kiểu đoạn văn
@@ -2654,6 +2662,7 @@
 	Reset to Default	Đặt lại về mặc định
 	Reset to default	Đặt lại về mặc định
 	Reset to White, Black	Đặt lại về Trắng, Đen
+	Reset Tracking and Kerning	Đặt lại giãn chữ và kerning
 	Reset with Mesh	Đặt lại với lưới
 	Reset with Mesh…	Đặt lại với lưới…
 	Reset with Warp	Đặt lại với biến dạng
@@ -3791,6 +3800,9 @@ theme	Appearance	Giao diện
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	axis phải là "vertical", "horizontal" hoặc góc theo độ, không phải `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	background {other}: transparent, white, black hoặc màu như "#ff8800"
 @msg	bad color {v}	màu không hợp lệ {v}
+@msg	the Color Picker is not open	Bộ chọn màu chưa được mở
+@msg	the screen color sampler is already open	công cụ lấy mẫu màu trên màn hình đã được mở
+@msg	this system has no screen color sampler	hệ thống này không có công cụ lấy mẫu màu trên màn hình
 @msg	bad colour `{hex}` (#rrggbb)	màu không hợp lệ `{hex}` (#rrggbb)
 @msg	bad page tree	cây trang bị lỗi
 @msg	bad shortcut	phím tắt không hợp lệ
@@ -4193,6 +4205,8 @@ theme	Appearance	Giao diện
 @msg	the art is too light for any dots	tác phẩm quá sáng để có bất kỳ chấm nào
 @msg	the art on them differs from the page's in {_1}% of it	tác phẩm trên chúng khác với trang {_1}%
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	tác phẩm trên chúng khác với tác phẩm của trang ở {_1}% diện tích: dù vậy chúng vẫn được lấy từ dữ liệu chỉnh sửa
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	không đọc được các lớp của tệp ({_1}): tệp được mở dưới dạng trang của nó, trong một lớp
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	không đọc được các lớp của tệp từ dữ liệu chỉnh sửa ({_1}): chúng được lấy từ phần PDF
 @msg	the artboard to fit must be a positive size up to {_1} pt	bảng vẽ cần khớp phải có kích thước dương tối đa {_1} pt
 @msg	the background worker stopped	tiến trình nền đã dừng
 @msg	the compressed file unpacks to more than VectorCraft reads ({_1} MB of document, {_2} MB per image)	tệp nén giải nén ra nhiều hơn VectorCraft đọc ({_1} MB tài liệu, {_2} MB mỗi ảnh)
@@ -4423,3 +4437,4 @@ theme	Appearance	Giao diện
 @msg	Unknown unit	Đơn vị không xác định
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Đóng các đầu tròn của biên dạng mở. Khi xoay một phần, các mặt cắt bên vẫn mở.
+	Distance	Khoảng cách

@@ -315,6 +315,17 @@ pub(crate) fn focus_field(ui: &Ui, id: egui::Id, text: &str) {
     ui.memory_mut(|m| m.request_focus(id));
 }
 
+/// The modifiers held with an Enter press among this frame's events, `None` without one, as when a
+/// field's editing ends with a click elsewhere.
+pub(crate) fn enter_modifiers(ui: &Ui) -> Option<egui::Modifiers> {
+    ui.input(|i| {
+        i.events.iter().find_map(|e| match e {
+            egui::Event::Key { key: egui::Key::Enter, pressed: true, modifiers, .. } => Some(*modifiers),
+            _ => None,
+        })
+    })
+}
+
 /// Select all of `text` in text field `id`.
 fn select_all(ui: &Ui, id: egui::Id, text: &str) {
     let mut st = egui::TextEdit::load_state(ui.ctx(), id).unwrap_or_default();
@@ -840,17 +851,33 @@ pub fn popover<R>(resp: &Response, toggle: bool, content: impl FnOnce(&mut Ui) -
     inner
 }
 
-/// The body of a menu or popup list: as tall as its items up to the bottom of the window, and
-/// scrolling only past that, so long menus (Window, Effect, a panel's menu) stay reachable on
-/// small windows.
-pub fn menu_scroll<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
-    // Room left below the popup's first item, less the popup frame and a small gap.
+/// Records where the bottom bars (status and hint bars) start this frame, so menus can stop above
+/// them (#2086). Without bars it is the bottom of the window.
+pub fn set_menu_floor(ctx: &egui::Context, y: f32) {
+    ctx.data_mut(|d| d.insert_temp(egui::Id::new("menu_floor"), y));
+}
+
+/// The height a menu list may take: from `top` down to `floor` less a small gap, at least 120 pt.
+pub fn menu_room(floor: f32, top: f32) -> f32 {
     const BOTTOM_GAP: f32 = 12.0;
     const MIN_HEIGHT: f32 = 120.0;
-    let room = (ui.ctx().content_rect().bottom() - ui.next_widget_position().y - BOTTOM_GAP).max(MIN_HEIGHT);
-    // The minimum lets the list grow past a popup's default 400 pt size; it still shrinks to
-    // its items when they need less.
-    egui::ScrollArea::vertical().max_height(room).min_scrolled_height(room).show(ui, add_contents).inner
+    (floor - top - BOTTOM_GAP).max(MIN_HEIGHT)
+}
+
+/// The body of a menu or popup list: as tall as its items up to the bottom bars of the window, and
+/// scrolling only past that, so long menus (Window, Effect, a panel's menu) stay reachable on
+/// small windows. Its scroll bar has a column of its own, so it never covers the shortcuts or the
+/// submenu arrows (#2086).
+pub fn menu_scroll<R>(ui: &mut Ui, add_contents: impl FnOnce(&mut Ui) -> R) -> R {
+    let floor = ui.ctx().data(|d| d.get_temp::<f32>(egui::Id::new("menu_floor"))).unwrap_or_else(|| ui.ctx().content_rect().bottom());
+    let room = menu_room(floor, ui.next_widget_position().y);
+    ui.scope(|ui| {
+        ui.spacing_mut().scroll = egui::style::ScrollStyle { bar_width: 6.0, bar_inner_margin: 2.0, ..egui::style::ScrollStyle::solid() };
+        // The minimum lets the list grow past a popup's default 400 pt size; it still shrinks to
+        // its items when they need less.
+        egui::ScrollArea::vertical().max_height(room).min_scrolled_height(room).show(ui, add_contents).inner
+    })
+    .inner
 }
 
 /// A column of tool or panel buttons (the toolbar, the dock's icon column) that scrolls when the
@@ -1441,13 +1468,19 @@ pub fn channel_slider(
 }
 
 /// A hex colour field (`E67828`, no `#`) after a `#` label. Returns the text on commit when it
-/// changed.
+/// was typed into the field and differs from `hex`.
 pub fn hex_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, hex: &str) -> Option<String> {
     let t = Tokens::get(ui.ctx());
     ui.label(egui::RichText::new("#").size(15.0).color(t.text));
     let id = ui.id().with(id);
     let editing = ui.memory(|m| m.has_focus(id));
-    let mut buf: String = if editing { ui.data_mut(|d| d.get_temp::<String>(id)).unwrap_or_else(|| hex.to_string()) } else { hex.to_string() };
+    // Until the user types into it, the field shows `hex` as it is now, also while it has the
+    // focus. Tab can give it the focus in the frame another field commits an edit, before the edit
+    // changes `hex`; the text from before that edit is not committed when the focus moves on
+    // (#1692).
+    let edited_id = id.with("edited");
+    let edited = editing && ui.data_mut(|d| d.get_temp::<bool>(edited_id)).unwrap_or(false);
+    let mut buf: String = if edited { ui.data_mut(|d| d.get_temp::<String>(id)).unwrap_or_else(|| hex.to_string()) } else { hex.to_string() };
     let resp = egui::Frame::NONE
         .fill(t.input)
         .stroke(Stroke::new(1.0, if editing { t.accent } else { t.input_border }))
@@ -1466,7 +1499,11 @@ pub fn hex_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, hex: &
         })
         .inner;
     let commit = resp.lost_focus() && buf != hex;
-    ui.data_mut(|d| d.insert_temp(id, buf.clone()));
+    let focused = ui.memory(|m| m.has_focus(id));
+    ui.data_mut(|d| {
+        d.insert_temp(id, buf.clone());
+        d.insert_temp(edited_id, (edited || resp.changed()) && focused);
+    });
     commit.then_some(buf)
 }
 
@@ -1542,7 +1579,16 @@ pub fn opt_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     let id = ui.id().with(id);
     let shown = value.map(|v| unit.number(v)).unwrap_or_default();
     let editing = ui.memory(|m| m.has_focus(id));
-    let mut buf: String = if editing { ui.data_mut(|d| d.get_temp::<String>(id)).unwrap_or_else(|| shown.clone()) } else { shown.clone() };
+    // As in `hex_field`: until the user types into it, the field shows `shown` as it is now
+    // (#1692). When `shown` changes while the field has the focus and nothing has been typed into
+    // it, all of the new text is selected, as on keyboard focus.
+    let edited_id = id.with("edited");
+    let edited = editing && ui.data_mut(|d| d.get_temp::<bool>(edited_id)).unwrap_or(false);
+    let before = ui.data_mut(|d| d.get_temp::<String>(id));
+    let mut buf: String = if edited { before.clone().unwrap_or_else(|| shown.clone()) } else { shown.clone() };
+    if editing && !edited && before.is_some_and(|b| b != buf) {
+        select_all(ui, id, &buf);
+    }
     let enabled = ui.is_enabled();
     let framed = egui::Frame::NONE
         .fill(t.input)
@@ -1564,7 +1610,11 @@ pub fn opt_field(ui: &mut Ui, id: impl std::hash::Hash + std::fmt::Debug, value:
     // ↑/↓ and the wheel step a value (an empty field stays empty); a drag on its label scrubs it.
     let stepped = step_value(ui, &resp, &mut buf, |b| Some(unit.from_pt(unit.parse(b)?)), |v| unit.number(unit.to_pt(v)));
     let scrubbed = scrub::field(ui, id, framed.response.rect, &buf, value.map(|v| unit.from_pt(v)), STEP_DECIMALS);
-    ui.data_mut(|d| d.insert_temp(id, buf.clone()));
+    let focused = ui.memory(|m| m.has_focus(id));
+    ui.data_mut(|d| {
+        d.insert_temp(id, buf.clone());
+        d.insert_temp(edited_id, (edited || resp.changed()) && focused);
+    });
     if resp.lost_focus() && buf != shown {
         let s = buf.trim();
         if s.is_empty() { Some(None) } else { typed_unit(ui.ctx(), unit).parse(s).map(Some) }
@@ -1948,5 +1998,21 @@ mod spinner_modifier_tests {
         assert_eq!(spinner_step(14.0, 1.0, 0.0, true, egui::Modifiers::NONE), 15.0);
         assert_eq!(spinner_step(14.0, 1.0, 0.0, false, egui::Modifiers::COMMAND), 13.9);
         assert_eq!(spinner_step(0.0, 1.0, 0.0, false, egui::Modifiers::SHIFT), 0.0);
+    }
+}
+
+#[cfg(test)]
+mod menu_room_tests {
+    use super::*;
+
+    #[test]
+    fn menu_stops_above_the_bottom_bars() {
+        // Window 1000 pt tall, bars start at 948: a menu opening at y = 100 gets 836 pt, not 888.
+        assert_eq!(menu_room(948.0, 100.0), 836.0);
+    }
+
+    #[test]
+    fn menu_keeps_a_minimum_height() {
+        assert_eq!(menu_room(300.0, 290.0), 120.0);
     }
 }

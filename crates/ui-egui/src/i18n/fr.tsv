@@ -485,6 +485,7 @@
 	Color bars	Barres de couleurs
 	Color blindness – Deuteranopia-type	Daltonisme – type deutéranopie
 	Color blindness – Protanopia-type	Daltonisme – type protanopie
+	Color blindness – Tritanopia-type	Daltonisme – type tritanopie
 	Color Burn	Densité couleur +
 	Color conversion:	Conversion des couleurs :
 	Color Dodge	Densité couleur -
@@ -654,6 +655,7 @@
 	Cyan	Cyan
 	Dark	Sombre
 	Darken	Obscurcir
+	Darkness	Obscurité
 	dash	tiret
 	Dash Pattern	Motif de tirets
 	Dashed	Pointillés
@@ -1005,6 +1007,9 @@
 	Export…	Exporter…
 	Extrude & Bevel…	Extrusion et biseautage…
 	Eyedropper	Pipette
+	Sample Color from Screen	Prélever une couleur à l’écran
+	This system has no screen color sampler	Ce système n’a pas d’outil de prélèvement de couleur à l’écran
+	The active document changed while the screen color sampler was open	Le document actif a changé pendant que l’outil de prélèvement de couleur à l’écran était ouvert
 	Eyedropper Applies:	La pipette applique :
 	Eyedropper Options	Options de la pipette
 	Eyedropper Picks Up:	La pipette prélève :
@@ -1036,6 +1041,7 @@
 	Fill (X), double-click for the Color Picker	Fond (X), double-cliquez pour ouvrir le Sélecteur de couleurs
 	Fill and Stroke	Fond et contour
 	Fill new strokes	Remplir les nouveaux contours
+	Keep selected	Garder sélectionné
 	Fill Color	Couleur de fond
 	Fill New Type Objects With Placeholder Text	Remplir les nouveaux objets texte avec un texte de substitution
 	Fill Rule	Règle de remplissage
@@ -1059,6 +1065,7 @@
 	Fit Headline	Ajuster le titre
 	Decrease Font Size	Réduire la taille de police
 	Increase Font Size	Augmenter la taille de police
+	Reset Tracking and Kerning	Réinitialiser l’approche et le crénage
 	Spacing	Espacement
 	Step Type	Texte par incréments
 	Fit in View	Ajuster à la vue
@@ -2013,6 +2020,7 @@
 	Panel menu	Menu du panneau
 	Panel Options…	Options du panneau…
 	Panels	Panneaux
+	Panels Except Tools and Control	Panneaux sauf Outils et Contrôle
 	Paragraph	Paragraphe
 	Paragraph Style	Style de paragraphe
 	Paragraph Style Options	Options de style de paragraphe
@@ -3418,6 +3426,7 @@ imageTrace	Outline	Contour
 	 to set spacing and orientation	 pour définir l’espacement et l’orientation
 	:	 :
 	Isolate Selected Group	Isoler le groupe sélectionné
+	Isolate Selected Object	Isoler l’objet sélectionné
 	Release Clipping Mask	Annuler le masque d’écrêtage
 	Make Compound Path	Créer un tracé transparent
 	Release Compound Path	Annuler le tracé transparent
@@ -3503,6 +3512,8 @@ axis	Both	Les deux
 @msg	its type is to come in as outlines, which only its page has	son texte doit être importé sous forme de contours vectorisés, que seule sa page contient
 @msg	the art on them differs from the page's in {_1}% of it	le dessin des calques diffère de celui de la page sur {_1} % de sa surface
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	le dessin des calques diffère de celui de la page sur {_1} % de sa surface : ils proviennent malgré tout de ses données de modification
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	les calques du fichier n’ont pas été lus ({_1}) : il est ouvert tel que sa page, sur un seul calque
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	les calques du fichier n’ont pas été lus depuis ses données de modification ({_1}) : ils proviennent de sa partie PDF
 @msg	`to` must be "corner" or "smooth"	`to` doit être "corner" ou "smooth"
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	Les fichiers BMP sont en RVB ou en niveaux de gris : colorModel rgb ou gray
 @msg	Blend colors: select at least three objects with filled colours	Fusion des couleurs : sélectionnez au moins trois objets dotés d’un fond de couleur
@@ -3645,6 +3656,9 @@ axis	Both	Les deux
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	axis doit être "vertical", "horizontal" ou un angle en degrés, pas `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	arrière-plan {other} : transparent, white, black ou une couleur comme "#ff8800"
 @msg	bad color {v}	couleur non valide {v}
+@msg	the Color Picker is not open	le Sélecteur de couleurs n’est pas ouvert
+@msg	the screen color sampler is already open	l’outil de prélèvement de couleur à l’écran est déjà ouvert
+@msg	this system has no screen color sampler	ce système n’a pas d’outil de prélèvement de couleur à l’écran
 @msg	bad colour `{hex}` (#rrggbb)	couleur non valide `{hex}` (#rrggbb)
 @msg	bad page tree	arborescence des pages non valide
 @msg	bad shortcut	raccourci non valide

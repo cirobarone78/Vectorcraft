@@ -657,6 +657,7 @@
 	Color bars	Színsávok
 	Color blindness – Deuteranopia-type	Színvakság – deuteranópia
 	Color blindness – Protanopia-type	Színvakság – protanópia
+	Color blindness – Tritanopia-type	Színvakság – tritanópia
 	Color Burn	Színsötétítés
 	Color conversion:	Színátalakítás:
 	Color Dodge	Színvilágosítás
@@ -867,6 +868,7 @@
 	Dark Strokes	Sötét vonások
 	Dark Strokes…	Sötét vonások…
 	Darken	Sötétítés
+	Darkness	Sötétség
 	dash	vonal
 	Dash Pattern	Szaggatás mintázata
 	Dashed	Szaggatott
@@ -1290,6 +1292,9 @@
 	Export…	Exportálás…
 	Extrude & Bevel…	Kihúzás és élletörés…
 	Eyedropper	Pipetta
+	Sample Color from Screen	Szín mintavétele a képernyőről
+	This system has no screen color sampler	Ezen a rendszeren nincs képernyős színmintavevő
+	The active document changed while the screen color sampler was open	Az aktív dokumentum megváltozott, amíg a képernyős színmintavevő nyitva volt
 	Eyedropper Applies:	A pipetta alkalmazza:
 	Eyedropper Options	Pipetta beállításai
 	Eyedropper Picks Up:	A pipetta felveszi:
@@ -1324,6 +1329,7 @@
 	Fill and Stroke	Kitöltés és körvonal
 	Fill Color	Kitöltőszín
 	Fill new strokes	Új vonások kitöltése
+	Keep selected	Kijelölés megtartása
 	Fill New Type Objects With Placeholder Text	Új szövegobjektumok kitöltése helykitöltő szöveggel
 	Fill Rule	Kitöltési szabály
 	Fill with Placeholder Text	Kitöltés helykitöltő szöveggel
@@ -1748,6 +1754,7 @@
 	Isolate Blending	Keverés elkülönítése
 	Isolate Group	Csoport elkülönítése
 	Isolate Selected Group	Kijelölt csoport elkülönítése
+	Isolate Selected Object	Kijelölt objektum elkülönítése
 	Italian	Olasz
 	Italic	Dőlt
 	Its graphics, colors and text styles are deleted from this machine.	A grafikái, színei és szövegstílusai törlődnek erről a gépről.
@@ -2473,6 +2480,7 @@
 	Panel menu	Panelmenü
 	Panel Options…	Panel beállításai…
 	Panels	Panelek
+	Panels Except Tools and Control	Panelek az Eszközök és a Vezérlősáv kivételével
 	Paragraph	Bekezdés
 	Paragraph Style	Bekezdésstílus
 	Paragraph Style Options	Bekezdésstílus beállításai
@@ -2909,6 +2917,7 @@
 	Reset to Defaults	Alapértékek visszaállítása
 	Reset to White, Black	Visszaállítás fehér–fekete átmenetre
 	Reset Tracing	Tracing visszaállítása
+	Reset Tracking and Kerning	Betűköz és alávágás visszaállítása
 	Reset Typography	Typography visszaállítása
 	Reset Web	Web visszaállítása
 	Reset with Mesh	Visszaállítás hálóval
@@ -4161,6 +4170,9 @@ imageTrace	Outline	Körvonal
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	az axis értéke "vertical", "horizontal" vagy fokban megadott szög lehet, ez nem az: `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	background {other}: transparent, white, black vagy egy szín, például "#ff8800"
 @msg	bad color {v}	hibás szín: {v}
+@msg	the Color Picker is not open	a Színválasztó nincs megnyitva
+@msg	the screen color sampler is already open	a képernyős színmintavevő már nyitva van
+@msg	this system has no screen color sampler	ezen a rendszeren nincs képernyős színmintavevő
 @msg	bad colour `{hex}` (#rrggbb)	hibás szín: `{hex}` (#rrggbb)
 @msg	bad page tree	hibás oldalfa
 @msg	bad shortcut	hibás billentyűparancs
@@ -4560,6 +4572,8 @@ imageTrace	Outline	Körvonal
 @msg	the art is too light for any dots	a grafika túl világos, egyetlen raszterpont sem keletkezik
 @msg	the art on them differs from the page's in {_1}% of it	a rajtuk lévő grafika az oldalétól ennyiben tér el: {_1}%
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	a rajtuk lévő grafika az oldalétól ennyiben tér el: {_1}%; ennek ellenére a szerkesztési adataiból származnak
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	a fájl rétegei nem olvashatók ({_1}): az oldalaként, egyetlen rétegben nyílik meg
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	a fájl rétegei nem olvashatók a szerkesztési adataiból ({_1}): a PDF-részéből származnak
 @msg	the artboard to fit must be a positive size up to {_1} pt	az illesztendő rajztábla mérete pozitív, legfeljebb {_1} pt lehet
 @msg	the background worker stopped	a háttérfolyamat leállt
 @msg	the compressed file unpacks to more than {_1} MB	a tömörített fájl kicsomagolva nagyobb lenne, mint {_1} MB
@@ -4836,3 +4850,4 @@ imageTrace	Outline	Körvonal
 @msg	Unknown unit	Ismeretlen mértékegység
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Nyitott profilok kör alakú végeinek lezárása. Részleges körforgatás esetén a vágott oldalak nyitva maradnak.
+	Distance	Távolság
