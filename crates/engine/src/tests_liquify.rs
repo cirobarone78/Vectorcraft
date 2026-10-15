@@ -278,7 +278,7 @@ fn type_symbols_graphs_and_live_contents_are_left_alone_and_reported() {
 #[test]
 fn guides_are_left_alone_in_selection_mode_and_the_tool_reports_skips() {
     let mut s = session();
-    let g = rect(&mut s, 100.0, 100.0, 200.0, 200.0);
+    let g = NodeId(s.execute("shape.ellipse", &json!({"x": 100.0, "y": 100.0, "width": 40.0, "height": 30.0})).unwrap()["id"].as_u64().unwrap());
     s.execute("select.set", &json!({"ids": [g.0]})).unwrap();
     s.execute("view.guides.make", &json!({})).unwrap();
     let guide = path(&s, g);

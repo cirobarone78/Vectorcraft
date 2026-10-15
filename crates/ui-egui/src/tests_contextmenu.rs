@@ -3,7 +3,7 @@
 
 use egui::{Event, PointerButton, Pos2, Rect, pos2, vec2};
 use serde_json::json;
-use vectorcraft_doc::{NodeId, NodeKind};
+use vectorcraft_doc::NodeId;
 use vectorcraft_engine::Session;
 use vectorcraft_geom::Point;
 
@@ -82,8 +82,9 @@ fn right_click_selects_the_object_and_lists_its_commands() {
     }
     // Choosing an item runs its command and closes the menu.
     let texts = click(&mut app, &ctx, at(&texts, "Make Guides"), PointerButton::Primary);
-    let n = app.session.active().unwrap().doc.node(id).cloned().unwrap();
-    assert!(matches!(n.kind, NodeKind::Path { guide: true, .. }));
+    let doc = &app.session.active().unwrap().doc;
+    assert!(doc.node(id).is_none(), "a straight rectangle becomes ruler guides and the path goes");
+    assert!(doc.guides.len() >= 4, "{:?}", doc.guides);
     assert!(!has(&texts, "Arrange"));
 }
 

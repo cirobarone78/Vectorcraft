@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use serde_json::{Value, json};
 use vectorcraft_doc::{CharStyle, Guide, Node, NodeId, NodeKind, SavedSelection, TextKind};
-use vectorcraft_geom::Vec2;
+use vectorcraft_geom::{PathData, Vec2};
 
 use super::edit::selected_roots;
 use super::pathops::Beside;
@@ -126,7 +126,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Make Guides",
             ["View", "Guides"],
             Some("Cmd+5"),
-            "{} turn the selected paths into guides → {count}",
+            "{} turn the selected paths into guides. A path of only straight horizontal and vertical lines is removed and those lines become ruler guides; any other path becomes a guide path, drawn in the guide colour → {count}",
             has_selection,
             make_guides
         ),
@@ -437,12 +437,57 @@ fn set_guide_flag(n: &mut Node, on: bool, count: &mut usize) {
     }
 }
 
+/// Straight horizontal and vertical lines of `path`, as ruler guides `(vertical, pos)`.
+/// None when any segment is curved or diagonal: that path stays a guide path instead.
+fn axis_aligned_guides(path: &PathData) -> Option<Vec<(bool, f64)>> {
+    const E: f64 = 0.05;
+    let mut out = Vec::new();
+    let mut any = false;
+    for sp in &path.subpaths {
+        for i in 0..sp.segment_count() {
+            any = true;
+            if !sp.segment_is_line(i) {
+                return None;
+            }
+            let c = sp.segment(i);
+            let (dx, dy) = ((c.p3.x - c.p0.x).abs(), (c.p3.y - c.p0.y).abs());
+            if dy <= E && dx > E {
+                out.push((false, (c.p0.y + c.p3.y) * 0.5));
+            } else if dx <= E && dy > E {
+                out.push((true, (c.p0.x + c.p3.x) * 0.5));
+            } else if dx > E && dy > E {
+                return None;
+            }
+        }
+    }
+    (!out.is_empty() && any).then_some(out)
+}
+
 fn make_guides(s: &mut Session, _: &Value) -> Result<Value> {
     let roots = selected_roots(s)?;
     let n = s.edit("Make Guides", |d, sel| {
-        let mut n = 0;
+        let mut plans: Vec<(NodeId, Option<(Option<NodeId>, Vec<(bool, f64)>)>)> = Vec::new();
         for r in &roots {
-            if let Some(node) = d.node_mut(*r) {
+            let axis = d.node(*r).and_then(|n| match &n.kind {
+                NodeKind::Path { path, guide: false, clipping: false, .. } => axis_aligned_guides(path),
+                _ => None,
+            });
+            plans.push((*r, axis.map(|gs| (d.layer_containing(*r), gs))));
+        }
+        let mut n = 0;
+        for (id, axis) in plans {
+            if let Some((layer, gs)) = axis {
+                if d.remove(id).is_err() {
+                    continue;
+                }
+                n += 1;
+                for (vertical, pos) in gs {
+                    let same = d.guides.iter().any(|g| g.vertical == vertical && (g.pos - pos).abs() < 0.05 && g.layer == layer);
+                    if !same {
+                        d.guides.push(Guide { layer, ..Guide::new(vertical, pos) });
+                    }
+                }
+            } else if let Some(node) = d.node_mut(id) {
                 set_guide_flag(node, true, &mut n);
             }
         }

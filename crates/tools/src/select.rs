@@ -56,6 +56,8 @@ enum State {
         cur: Point,
         /// Shift: the objects inside leave the selection if selected, else join it.
         toggle: bool,
+        /// Ruler guides the pointer stroke crossed, even if the final rectangle does not hold them.
+        hit: Vec<usize>,
     },
     /// Dragging a Live Corners widget.
     Corner(CornerDrag),
@@ -366,7 +368,7 @@ impl Tool for SelectionTool {
                         out
                     }
                     None => {
-                        self.state = State::Marquee { start: p, cur: p, toggle: m.shift };
+                        self.state = State::Marquee { start: p, cur: p, toggle: m.shift, hit: vec![] };
                         vec![]
                     }
                 }
@@ -409,8 +411,13 @@ impl Tool for SelectionTool {
                 self.measure = cx.transform_tools_guides.then(|| (p, format!("{:.1}°", -deg)));
                 vec![Action::Preview("object.transform".into(), json!({ "matrix": matrix_json(a), "copy": false }))]
             }
-            (PointerKind::Drag, State::Marquee { start, toggle, .. }) => {
-                self.state = State::Marquee { start, cur: p, toggle };
+            (PointerKind::Drag, State::Marquee { start, cur, toggle, mut hit }) => {
+                for i in crate::rulerguide::guides_hit_by_stroke(cx, cur, p) {
+                    if !hit.contains(&i) {
+                        hit.push(i);
+                    }
+                }
+                self.state = State::Marquee { start, cur: p, toggle, hit };
                 vec![]
             }
             (PointerKind::Drag, State::Corner(mut c)) => {
@@ -452,7 +459,7 @@ impl Tool for SelectionTool {
                 self.targets = None;
                 vec![Action::Commit]
             }
-            (PointerKind::Up, State::Marquee { start, toggle, .. }) => {
+            (PointerKind::Up, State::Marquee { start, toggle, hit, .. }) => {
                 self.state = State::Idle;
                 let r = Rect::from_points(start, p);
                 if r.width() < Self::drag_threshold(cx) && r.height() < Self::drag_threshold(cx) {
@@ -460,7 +467,7 @@ impl Tool for SelectionTool {
                 }
                 let ids: Vec<NodeId> = marquee(cx.doc, r, cx.isolation, false);
                 let art = Action::Exec(if toggle { "select.toggle" } else { "select.set" }.into(), json!({ "ids": json_ids(&ids) }));
-                std::iter::once(art).chain(crate::rulerguide::marquee_select(cx, r)).collect()
+                std::iter::once(art).chain(crate::rulerguide::marquee_select(cx, r, &hit)).collect()
             }
             _ => vec![],
         }

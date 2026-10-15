@@ -2,8 +2,10 @@
 //! made where it is released over the canvas: with the Artboard tool, an artboard guide of the
 //! active artboard. For the selection tools ([`GuideEdit`]), a press on a guide selects it (Shift
 //! adds it to the selected guides or, released without a drag, takes it out); dragging moves the
-//! selected guides (Alt copies them), and a marquee selects the guides it crosses along with the
-//! art ([`marquee_select`]). A dragged guide snaps ([`GuideSnap`]): with Shift to the
+//! selected guides (Alt copies them). A drag that starts on a guide which is not selected and
+//! crosses other guides selects those guides instead of moving the first one. A marquee selects
+//! the guides it crosses, including any the pointer stroke passed, along with the art
+//! ([`marquee_select`]). A dragged guide snaps ([`GuideSnap`]): with Shift to the
 //! ruler's ticks, else to whole pixels, the grid, with Smart Guides the art's and the artboards'
 //! edges, centres and anchors, or with Snap to Point the anchors. Dropped off the canvas onto its
 //! ruler, a moved guide is deleted. Hidden or locked guides (View › Guides), and guides on a hidden
@@ -34,11 +36,39 @@ pub fn guide_at(cx: &ToolContext, p: Point) -> Option<usize> {
 }
 
 /// What a selection tool's marquee `r` does to the ruler guides, after its action selecting the
-/// art: the guides it crosses join the selection (with a Shift marquee, the selected ones leave
-/// it, as with a Shift-click on a guide).
-pub fn marquee_select(cx: &ToolContext, r: Rect) -> Option<Action> {
-    let guides = guides_in_rect(cx, r);
+/// art: the guides it crosses, and any in `also` the pointer stroke passed, join the selection
+/// (with a Shift marquee, the selected ones leave it, as with a Shift-click on a guide).
+pub fn marquee_select(cx: &ToolContext, r: Rect, also: &[usize]) -> Option<Action> {
+    let mut guides = guides_in_rect(cx, r);
+    for &i in also {
+        if cx.doc.guides.get(i).is_some_and(|g| cx.doc.guide_editable(g)) && !guides.contains(&i) {
+            guides.push(i);
+        }
+    }
     (!guides.is_empty()).then(|| Action::Exec("guide.select".into(), json!({ "indexes": guides, "toggle": true })))
+}
+
+/// Editable ruler guides the straight stroke from `a` to `b` crosses, within the pick tolerance.
+pub fn guides_hit_by_stroke(cx: &ToolContext, a: Point, b: Point) -> Vec<usize> {
+    if !cx.guides {
+        return vec![];
+    }
+    let tol = cx.pick_tol();
+    cx.doc.guides.iter().enumerate().filter(|(_, g)| cx.doc.guide_editable(g) && stroke_hits_guide(cx, g, a, b, tol)).map(|(i, _)| i).collect()
+}
+
+/// Does the segment `a`–`b` meet guide `g` (its line, and its span when it is not a canvas guide)?
+fn stroke_hits_guide(cx: &ToolContext, g: &vectorcraft_doc::Guide, a: Point, b: Point, tol: f64) -> bool {
+    let (a0, b0, along_a, along_b) = if g.vertical { (a.x, b.x, a.y, b.y) } else { (a.y, b.y, a.x, b.x) };
+    let crosses = (a0 - g.pos).abs() <= tol || (b0 - g.pos).abs() <= tol || (a0 - g.pos) * (b0 - g.pos) < 0.0;
+    if !crosses {
+        return false;
+    }
+    cx.doc.guide_span(g).is_none_or(|(u0, u1)| {
+        let lo = along_a.min(along_b) - tol;
+        let hi = along_a.max(along_b) + tol;
+        hi >= u0 && lo <= u1
+    })
 }
 
 /// The editable ruler guides intersecting marquee rectangle `r`.
@@ -52,10 +82,15 @@ fn guides_in_rect(cx: &ToolContext, r: Rect) -> Vec<usize> {
         .enumerate()
         .filter(|(_, g)| cx.doc.guide_editable(g))
         .filter(|(_, g)| {
+            let tol = cx.pick_tol();
             if g.vertical {
-                r.min_x() <= g.pos && g.pos <= r.max_x() && cx.doc.guide_span(g).is_none_or(|(y0, y1)| r.max_y() >= y0 && r.min_y() <= y1)
+                r.min_x() - tol <= g.pos
+                    && g.pos <= r.max_x() + tol
+                    && cx.doc.guide_span(g).is_none_or(|(y0, y1)| r.max_y() + tol >= y0 && r.min_y() - tol <= y1)
             } else {
-                r.min_y() <= g.pos && g.pos <= r.max_y() && cx.doc.guide_span(g).is_none_or(|(x0, x1)| r.max_x() >= x0 && r.min_x() <= x1)
+                r.min_y() - tol <= g.pos
+                    && g.pos <= r.max_y() + tol
+                    && cx.doc.guide_span(g).is_none_or(|(x0, x1)| r.max_x() + tol >= x0 && r.min_x() - tol <= x1)
             }
         })
         .map(|(i, _)| i)
@@ -67,7 +102,7 @@ fn guide_cursor(vertical: bool) -> Cursor {
     if vertical { Cursor::ResizeH } else { Cursor::ResizeV }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct Drag {
     index: usize,
     vertical: bool,
@@ -79,6 +114,12 @@ struct Drag {
     began: bool,
     /// Shift-pressed on a selected guide: released without a drag, it leaves the selection.
     deselect: bool,
+    /// An unselected guide, and not a Shift or Alt press: a drag that crosses another guide
+    /// selects the guides it crosses instead of moving this one.
+    swipe: bool,
+    /// The swipe has crossed another guide, so the release selects rather than moves.
+    selecting: bool,
+    trail: Vec<Point>,
 }
 
 /// Snapping for a dragged ruler guide, its targets gathered when the drag begins.
@@ -223,6 +264,9 @@ impl GuideEdit {
             pointer: ev.pos,
             began: false,
             deselect: shift && selected,
+            swipe: !selected && !shift && !ev.mods.alt,
+            selecting: false,
+            trail: vec![ev.pos],
         });
         self.snap = GuideSnap::default();
         Some(match (selected, shift) {
@@ -234,7 +278,7 @@ impl GuideEdit {
 
     /// The drag and release of a guide [`Self::press`] picked; None when no guide is pressed.
     pub fn pointer(&mut self, cx: &ToolContext, ev: &PointerEvent) -> Option<Vec<Action>> {
-        let mut d = self.drag?;
+        let mut d = self.drag.take()?;
         Some(match ev.kind {
             PointerKind::Drag => {
                 let out = self.drag_to(cx, &mut d, ev);
@@ -244,13 +288,26 @@ impl GuideEdit {
             PointerKind::Up => {
                 self.drag = None;
                 self.snap = GuideSnap::default();
-                if d.began && on_ruler(cx, d.vertical, ev.pos) {
+                if d.began && !d.selecting && on_ruler(cx, d.vertical, ev.pos) {
                     // Dropped on its ruler: the guide goes (a copy is just not made).
                     let mut out = vec![Action::Cancel];
                     if !ev.mods.alt {
                         out.push(Action::Exec("guide.remove".into(), json!({ "index": d.index })));
                     }
                     out
+                } else if d.selecting {
+                    let mut idxs = d.trail.windows(2).fold(Vec::new(), |mut v, w| {
+                        for i in guides_hit_by_stroke(cx, w[0], w[1]) {
+                            if !v.contains(&i) {
+                                v.push(i);
+                            }
+                        }
+                        v
+                    });
+                    if !idxs.contains(&d.index) {
+                        idxs.insert(0, d.index);
+                    }
+                    vec![Action::Exec("guide.select".into(), json!({ "indexes": idxs }))]
                 } else if d.began {
                     vec![Action::Commit]
                 } else if d.deselect {
@@ -274,9 +331,23 @@ impl GuideEdit {
             if p.distance(d.start) < cx.tol(3.0) {
                 return out;
             }
+            // Swiping across other guides selects them. A guide that is already selected, or an
+            // Alt press, still moves.
+            if d.swipe && guides_hit_by_stroke(cx, d.start, p).iter().any(|i| *i != d.index) {
+                d.began = true;
+                d.selecting = true;
+                d.trail = vec![d.start, p];
+                return out;
+            }
             d.began = true;
+            d.swipe = false;
             out.push(Action::Begin(if ev.mods.alt { "Copy Guide" } else { "Move Guide" }.into()));
             self.snap = GuideSnap::new(cx);
+        }
+        if d.selecting {
+            d.trail.push(p);
+            d.pointer = p;
+            return out;
         }
         let moved = p - d.start;
         let at = self.snap.snap(cx, d.vertical, d.from + if d.vertical { moved.x } else { moved.y }, ev.mods.shift);
@@ -297,7 +368,7 @@ impl GuideEdit {
 
     /// While a guide is dragged: the smart guide it snapped to and its position by the pointer.
     pub fn overlays(&self, cx: &ToolContext) -> Vec<Overlay> {
-        let Some(d) = self.drag.filter(|d| d.began) else { return vec![] };
+        let Some(d) = self.drag.as_ref().filter(|d| d.began) else { return vec![] };
         self.snap.overlays(cx, d.vertical, d.at, d.pointer)
     }
 }
@@ -623,5 +694,26 @@ mod tests {
         g.press(&c, &ev(PointerKind::Down, 50.0, 400.0, m));
         g.pointer(&c, &ev(PointerKind::Drag, 50.0, -6.0, m));
         assert_eq!(g.pointer(&c, &ev(PointerKind::Up, 50.0, -6.0, m)), Some(vec![Action::Commit]));
+    }
+
+    /// A drag that starts on an unselected guide and crosses others selects those guides.
+    /// It does not move the first one. A click still selects only that guide.
+    #[test]
+    fn swiping_across_unselected_guides_selects_them() {
+        let (mut d, _) = doc_with_rect();
+        d.guides = vec![Guide::new(true, 100.0), Guide::new(true, 160.0), Guide::new(false, 40.0)];
+        let (s, p) = (Selection::default(), paint());
+        let c = cx(&d, &s, &p);
+        let m = Mods::default();
+        let mut g = GuideEdit::default();
+        assert_eq!(g.press(&c, &ev(PointerKind::Down, 100.0, 80.0, m)), Some(vec![Action::Exec("guide.select".into(), json!({"indexes": [0]}))]));
+        let drag = g.pointer(&c, &ev(PointerKind::Drag, 170.0, 82.0, m)).unwrap();
+        assert!(drag.is_empty(), "a swipe does not start a move: {drag:?}");
+        let up = g.pointer(&c, &ev(PointerKind::Up, 170.0, 82.0, m)).unwrap();
+        assert_eq!(up, vec![Action::Exec("guide.select".into(), json!({"indexes": [0, 1]}))]);
+        // The horizontal guide was not on the stroke.
+        let mut g = GuideEdit::default();
+        g.press(&c, &ev(PointerKind::Down, 100.0, 200.0, m));
+        assert!(g.pointer(&c, &ev(PointerKind::Drag, 110.0, 200.0, m)).unwrap().iter().any(|a| matches!(a, Action::Begin(_))));
     }
 }

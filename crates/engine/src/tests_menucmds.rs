@@ -1346,23 +1346,38 @@ fn font_and_size_menu_items_use_set_style() {
 
 // ---------- View → Guides ----------
 
+fn ellipse(s: &mut Session, x: f64, y: f64, w: f64, h: f64) -> NodeId {
+    id_of(&s.execute("shape.ellipse", &json!({"x": x, "y": y, "width": w, "height": h})).unwrap())
+}
+
 #[test]
 fn make_release_clear_guides() {
     let mut s = session();
+    // A rectangle is only straight horizontal and vertical lines: it goes, and those lines
+    // become ruler guides.
     let a = rect(&mut s, 0.0, 0.0, 10.0, 10.0);
     sel(&mut s, &[a]);
     assert_eq!(s.execute("view.guides.make", &json!({})).unwrap()["count"], 1);
-    assert!(matches!(node(&s, a).kind, NodeKind::Path { guide: true, .. }));
+    assert!(s.doc().unwrap().doc.node(a).is_none(), "the path is removed");
+    let mut g = guides(&s);
+    g.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.partial_cmp(&b.1).unwrap()));
+    assert_eq!(g, vec![(false, 0.0), (false, 10.0), (true, 0.0), (true, 10.0)]);
     assert!(selected(&s).is_empty());
+    // A curve stays a guide path, and Release turns it back into art.
+    let e = ellipse(&mut s, 30.0, 30.0, 20.0, 10.0);
+    sel(&mut s, &[e]);
+    assert_eq!(s.execute("view.guides.make", &json!({})).unwrap()["count"], 1);
+    assert!(matches!(node(&s, e).kind, NodeKind::Path { guide: true, .. }));
     assert_eq!(s.execute("view.guides.release", &json!({})).unwrap()["count"], 1);
-    assert!(matches!(node(&s, a).kind, NodeKind::Path { guide: false, .. }));
-    sel(&mut s, &[a]);
+    assert!(matches!(node(&s, e).kind, NodeKind::Path { guide: false, .. }));
+    sel(&mut s, &[e]);
     s.execute("view.guides.make", &json!({})).unwrap();
     s.execute("guide.add", &json!({"vertical": true, "pos": 100})).unwrap();
     let n = undo_len(&s);
-    assert_eq!(s.execute("view.guides.clear", &json!({})).unwrap()["count"], 2);
+    let guides_before = s.doc().unwrap().doc.guides.len();
+    assert_eq!(s.execute("view.guides.clear", &json!({})).unwrap()["count"], guides_before + 1);
     assert!(s.doc().unwrap().doc.guides.is_empty());
-    assert!(s.doc().unwrap().doc.node(a).is_none());
+    assert!(s.doc().unwrap().doc.node(e).is_none());
     assert_eq!(undo_len(&s), n + 1);
 }
 
@@ -1386,7 +1401,7 @@ fn ruler_guides_and_lock() {
 #[test]
 fn locked_guides_lock_guide_paths() {
     let mut s = session();
-    let (a, b) = (rect(&mut s, 0.0, 0.0, 10.0, 10.0), rect(&mut s, 20.0, 20.0, 10.0, 10.0));
+    let (a, b) = (ellipse(&mut s, 0.0, 0.0, 10.0, 10.0), rect(&mut s, 20.0, 20.0, 10.0, 10.0));
     sel(&mut s, &[a]);
     s.execute("view.guides.make", &json!({})).unwrap();
     s.execute("view.guides.lock", &json!({"locked": true})).unwrap();
