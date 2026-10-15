@@ -728,13 +728,7 @@ fn has_options(id: &str) -> bool {
 /// edits go through `effect.setParams`.
 fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: usize, e: &Effect) {
     let t = Tokens::get(ui.ctx());
-    let defaults = vectorcraft_effects::default_params(&e.id).unwrap_or(Value::Null);
-    let mut params = defaults.as_object().cloned().unwrap_or_default();
-    if let Some(cur) = e.params.as_object() {
-        for (key, v) in cur {
-            params.insert(key.clone(), v.clone());
-        }
-    }
+    let params = editor_params(e);
     let mut change: Option<(String, Value)> = None;
     let built_in = built_in_effect(&e.id);
     let (unit, relative) = (app.session.general_unit(), params.get("relative").and_then(Value::as_bool).unwrap_or(false));
@@ -788,6 +782,15 @@ fn effect_editor(app: &mut VectorcraftApp, ui: &mut Ui, item: Option<usize>, k: 
     });
     if let Some((key, v)) = change {
         app.run("effect.setParams", json!({"item": item, "index": k, "params": {key: v}})).ok();
+    }
+}
+
+/// The values [`effect_editor`] lists: the effect's own values over its defaults, with earlier keys
+/// in their current form (Scribble's one `variation` as its Path Overlap and Spacing variations).
+fn editor_params(e: &Effect) -> serde_json::Map<String, Value> {
+    match vectorcraft_effects::merged_params(&e.id, &e.params) {
+        Value::Object(m) => m,
+        _ => serde_json::Map::new(),
     }
 }
 
@@ -978,6 +981,19 @@ mod tests {
         // Only our own effects are interface labels; a plug-in's name is its own.
         assert!(built_in_effect("stylize.dropShadow") && !built_in_effect("plugin.example.glow"));
         assert_eq!(shown_effect_label("plugin.example.glow"), effect_label("plugin.example.glow"));
+    }
+
+    #[test]
+    fn the_effect_editor_lists_earlier_parameters_in_their_current_form() {
+        // A Scribble saved with one `variation` lists it as its Path Overlap and Spacing variations.
+        let e = Effect { id: "stylize.scribble".into(), params: json!({"variation": 2, "angle": 270}), visible: true };
+        let p = editor_params(&e);
+        assert!(!p.contains_key("variation"), "{p:?}");
+        assert_eq!((&p["overlapVariation"], &p["spacingVariation"], &p["curvinessVariation"]), (&json!(2), &json!(2), &json!(0.0)));
+        assert_eq!(p["angle"].as_f64(), Some(-90.0));
+        // Another effect lists its values over its defaults, as before.
+        let e = Effect { id: "distort.twist".into(), params: json!({"angle": 270}), visible: true };
+        assert_eq!(editor_params(&e).get("angle"), Some(&json!(270)));
     }
 
     #[test]
