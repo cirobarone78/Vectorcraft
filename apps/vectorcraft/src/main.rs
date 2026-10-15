@@ -588,15 +588,19 @@ fn adapter_summary(info: &eframe::wgpu::AdapterInfo) -> String {
     format!("{} ({:?}, {:?})", info.name.trim(), info.backend, info.device_type)
 }
 
-/// Windows and Linux: no OS title bar; the app bar is the title bar (`vectorcraft_ui_egui::titlebar`).
+/// Custom title bar support on Windows and Linux: no OS title bar; the app bar is the title bar (`vectorcraft_ui_egui::titlebar`).
 /// macOS keeps its traffic lights over the integrated title strip.
 const CUSTOM_TITLEBAR: bool = !cfg!(target_os = "macos");
 
-/// Whether this start draws its own title bar: Windows and Linux do, unless Preferences ›
-/// User Interface › System Title Bar asks for the system's. Read from the saved preferences
+/// Whether this start draws its own title bar. Linux defaults to the toolkit frame; Preferences ›
+/// User Interface › System Title Bar overrides that default. Read from the saved preferences
 /// before the window opens; a missing or unreadable value keeps the default.
 fn custom_titlebar(saved: Option<&vectorcraft_ui_egui::UiState>) -> bool {
-    CUSTOM_TITLEBAR && !saved.map(|ui| ui.engine_prefs.get("systemTitleBar").and_then(serde_json::Value::as_bool).unwrap_or(false)).unwrap_or(false)
+    let system = saved
+        .and_then(|ui| ui.engine_prefs.get("systemTitleBar"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or_else(|| vectorcraft_engine::Prefs::default().system_title_bar);
+    CUSTOM_TITLEBAR && !system
 }
 
 fn native_options(custom_titlebar: bool) -> eframe::NativeOptions {
@@ -946,7 +950,9 @@ mod tests {
     fn the_system_title_bar_preference_keeps_the_window_decorations() {
         // Preferences › User Interface › System Title Bar gives the window back its system
         // decorations on Windows and Linux; macOS always has them.
-        assert_eq!(super::custom_titlebar(None), super::CUSTOM_TITLEBAR, "no preferences: the default");
+        assert_eq!(super::custom_titlebar(None), super::CUSTOM_TITLEBAR && !cfg!(target_os = "linux"), "no preferences: the default");
+        let missing = ui_state_with_prefs(serde_json::json!({}));
+        assert_eq!(super::custom_titlebar(Some(&missing)), super::CUSTOM_TITLEBAR && !cfg!(target_os = "linux"));
         let off = ui_state_with_prefs(serde_json::json!({"systemTitleBar": false}));
         assert_eq!(super::custom_titlebar(Some(&off)), super::CUSTOM_TITLEBAR);
         let on = ui_state_with_prefs(serde_json::json!({"systemTitleBar": true}));
