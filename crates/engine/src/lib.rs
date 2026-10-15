@@ -542,11 +542,16 @@ pub const MAX_COORD: f64 = 4.0e6;
 /// steps that names none.
 pub const ON_ACTIVE_ARTBOARD: [&str; 5] = ["edit.pasteInPlace", "edit.pasteInFront", "edit.pasteInBack", "object.align", "select.allOnArtboard"];
 
+/// The commands that resize the active artboard, which the app passes as their `index`: Fit to
+/// Artwork Bounds and Fit to Selected Art (Object › Artboards). A `command.batch` given `artboard`
+/// passes it on, as `index`, to each of their steps that names none.
+pub const FIT_ACTIVE_ARTBOARD: [&str; 2] = ["artboard.fitToArt", "artboard.fitToSelection"];
+
 /// `(command, param)` pairs the journal records only so a replay reproduces the original run
 /// (dates from the clock: `cmd::clock_date`; the active artboard the app passes to the
-/// [`ON_ACTIVE_ARTBOARD`] commands and to a batch); an action leaves them out
-/// ([`Session::journal_for_action`]).
-const REPLAY_ONLY: [(&str, &str); 9] = [
+/// [`ON_ACTIVE_ARTBOARD`] and [`FIT_ACTIVE_ARTBOARD`] commands and to a batch); an action leaves
+/// them out ([`Session::journal_for_action`]).
+const REPLAY_ONLY: [(&str, &str); 11] = [
     ("file.new", "created"),
     ("document.save", "modified"),
     ("file.saveAs", "modified"),
@@ -554,6 +559,8 @@ const REPLAY_ONLY: [(&str, &str); 9] = [
     ("edit.pasteInFront", "artboard"),
     ("edit.pasteInBack", "artboard"),
     ("object.align", "artboard"),
+    ("artboard.fitToArt", "index"),
+    ("artboard.fitToSelection", "index"),
     ("select.allOnArtboard", "artboard"),
     ("command.batch", "artboard"),
 ];
