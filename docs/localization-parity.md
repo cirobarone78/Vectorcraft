@@ -1,6 +1,6 @@
 # Localization parity
 
-> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-13 · **Change:** minor (Polish: the rows added by the maintainers confirmed by the Polish translator, #1614; tool flyouts fit their translated names, #1616; scores and estimates unchanged; Polish: 4,510 rows counted in the catalog (the row said 4,492), #1498; French: 423 strings added since the catalog was measured and 188 entries reworded, #1511; Hungarian: one message in the informal address, #1474; scores and estimates unchanged; Vietnamese catalog added, complete under the tests; 12-language score 63% → 71%; Czech: 128 strings added since the catalog was completed are translated, #1461; scores and estimates unchanged; Korean catalog added, complete under the tests; 12-language score 54% → 63%; Hungarian catalog added; Czech render-site localization follow-up; scores and estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
+> **Last reviewed:** 2026-10-10 · **Last updated:** 2026-10-13 · **Change:** minor (Georgian interface catalog; Polish: the rows added by the maintainers confirmed by the Polish translator, #1614; tool flyouts fit their translated names, #1616; scores and estimates unchanged; Polish: 4,510 rows counted in the catalog (the row said 4,492), #1498; French: 423 strings added since the catalog was measured and 188 entries reworded, #1511; Hungarian: one message in the informal address, #1474; scores and estimates unchanged; Vietnamese catalog added, complete under the tests; 12-language score 63% → 71%; Czech: 128 strings added since the catalog was completed are translated, #1461; scores and estimates unchanged; Korean catalog added, complete under the tests; 12-language score 54% → 63%; Hungarian catalog added; Czech render-site localization follow-up; scores and estimates unchanged) · **Target:** Adobe Illustrator 2026 (30.x)
 
 Per-language status of VectorCraft's interface. How the catalogs work and how to add a language:
 [`development.md` › Localisation](development.md#localisation). Part of
@@ -17,7 +17,7 @@ in-app help, and the docs are English.
 
 **Native review:** every catalog was written clean-room from the English meaning, most of it by agents
 (`bflatastic`), with community contributors adding or correcting (German by `dwetscher`, Japanese and Traditional
-Chinese by `imachus`). None is recorded as reviewed by a native speaker; the catalog headers ask for one.
+Chinese by `imachus`). Only Georgian is recorded as reviewed by a native speaker; the other catalog headers ask for one.
 
 ## The twelve key languages
 
@@ -52,8 +52,9 @@ plus review. Native-speaker review is human work and isn't in the hours.
 | Hungarian | `hu` | 4,524 rows: menus, `tl!` literals and messages complete (tests); one plural form | full |
 | Polish | `pl` | 4,510 rows (counted 2026-10-13): menus, `tl!` literals and messages complete (tests); one/few/many plurals | full; native review pending |
 | Czech | `cs` | 4,411 catalog entries, including 636 `@msg` rows (measured locally 2026-10-11); menu, literal and message coverage enforced by tests | catalog complete; render-site gaps reduced; native review pending |
+| Georgian | `ka` | 4,647 rows (counted 2026-10-14): menus, panels, dialogs, plurals (one count-neutral form) and messages, tested complete; reviewed by a native speaker | full |
 
-Fifteen non-English catalogs in all. Illustrator, as its public documentation lists, ships around two dozen
+Sixteen non-English catalogs in all. Illustrator, as its public documentation lists, ships around two dozen
 interface languages (including Polish, Dutch, Turkish, the Nordic languages, Hungarian, and Middle East
 editions with Arabic and Hebrew); it doesn't ship Hindi, Indonesian or Vietnamese.
 
@@ -89,5 +90,6 @@ font for the web build.
 | 2026-10-12 | minor | Korean (`ko`) catalog added, complete under the tests (menus, literals, messages); 12-language score 54% → 63%, hours 70–110 → 60–100 |
 | 2026-10-12 | minor | Polish (`pl`) catalog added, complete under the tests (menus, literals, messages; one/few/many plurals) |
 | 2026-10-12 | minor | Hungarian (`hu`) catalog added, complete under the tests |
+| 2026-10-12 | minor | Georgian (`ka`) catalog, complete |
 | 2026-10-11 | minor | Czech render-site follow-up: file-dialog filters, diagnostics, preset numbering, contributor tooltips/plurals, gradient grammar and contextual printer mark styles; estimates unchanged |
 | 2026-10-10 | major | First per-language table, measured from the catalog row counts against the complete French catalog |

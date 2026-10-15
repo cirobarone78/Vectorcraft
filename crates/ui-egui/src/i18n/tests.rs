@@ -23,6 +23,9 @@ fn tags_map_to_languages() {
     for tag in ["fr", "fr_FR.UTF-8", "fr-BE", "fr_CA", "fr-CH", "fr-LU"] {
         assert_eq!(lang_from_tag(tag), Lang::from_code("fr"), "{tag}");
     }
+    for tag in ["ka", "ka-GE", "ka_GE.UTF-8", "KA-ge"] {
+        assert_eq!(lang_from_tag(tag), Some(ka()), "{tag}");
+    }
     for tag in ["uk", "uk-UA", "uk_UA.UTF-8", "UK-ua", "uk_UA.UTF-8@euro"] {
         assert_eq!(lang_from_tag(tag), Some(uk()), "{tag}");
     }
@@ -260,6 +263,12 @@ fn is_cjk(c: char) -> bool {
     matches!(c as u32, 0x1100..=0x11FF | 0x3000..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF | 0xFF00..=0xFFEF | 0x20000..=0x2FFFF)
 }
 
+/// Georgian letters (Mkhedruli, Mtavruli, Asomtavruli): no bundled UI font has them, so they come
+/// from an installed font and are not checked here.
+fn is_georgian(c: char) -> bool {
+    matches!(c as u32, 0x10A0..=0x10FF | 0x1C90..=0x1CBF | 0x2D00..=0x2D2F)
+}
+
 /// The UI fonts draw every character the catalogs use, in every family the UI draws text with
 /// (the web build has no system fonts to fall back to). Chinese and Japanese characters come from
 /// the craft-fonts build input, which is optional: without it they are left to the installed
@@ -283,8 +292,11 @@ fn bundled_fonts_cover_the_catalogs() {
         for l in LANGUAGES.iter().filter(|l| !l.source.is_empty()) {
             let (entries, _) = parse_entries(l.source);
             let cjk_checked = japanese_ui_font && l.code == "ja";
-            let chars: std::collections::BTreeSet<char> =
-                entries.iter().flat_map(|(_, _, tr)| tr.chars()).filter(|c| !c.is_whitespace() && (cjk_checked || !is_cjk(*c))).collect();
+            let chars: std::collections::BTreeSet<char> = entries
+                .iter()
+                .flat_map(|(_, _, tr)| tr.chars())
+                .filter(|c| !c.is_whitespace() && (cjk_checked || !is_cjk(*c)) && !is_georgian(*c))
+                .collect();
             for family in &families {
                 let font = egui::FontId::new(13.0, family.clone());
                 let gone: String = chars.iter().filter(|c| !fonts.has_glyph(&font, **c)).collect();
@@ -452,7 +464,7 @@ fn cs() -> Lang {
 }
 
 /// Languages whose catalogs leave [`MENU_KEEP_AS_IS`] in English.
-const KEEPS_MENU_NAMES: [&str; 13] = ["cs", "de", "es", "fr", "hu", "it", "ja", "ko", "pl", "pt-br", "ru", "uk", "vi"];
+const KEEPS_MENU_NAMES: [&str; 14] = ["cs", "de", "es", "fr", "hu", "it", "ja", "ka", "ko", "pl", "pt-br", "ru", "uk", "vi"];
 
 /// Menu labels the menu-complete catalogs (Czech, German, Spanish, Italian, Japanese, Brazilian Portuguese) show as they are: the product name, a format name, the built-in workspace
 /// names and the perspective grid presets (names, shown untranslated wherever else they appear).
@@ -604,6 +616,40 @@ fn it() -> Lang {
 
 fn ru() -> Lang {
     Lang::from_code("ru").expect("ru registered")
+}
+
+fn ka() -> Lang {
+    Lang::from_code("ka").expect("ka registered")
+}
+
+/// Georgian uses verbal nouns for commands, genitive + "ხელსაწყო" for tools, one count-neutral
+/// plural form (nouns stay singular after a number), and translates the reason inside a message.
+#[test]
+fn georgian_reads_as_georgian() {
+    for (en, want) in [
+        ("Artboard Tool", "სამუშაო დაფის ხელსაწყო"),
+        ("Swatches", "ფერის ნიმუშები"),
+        ("Pathfinder", "ტრაექტორიების ოპერაციები"),
+        ("Stroke", "კონტური"),
+        ("Fill", "შევსება"),
+        ("Direct Selection Tool", "პირდაპირი მონიშვნის ხელსაწყო"),
+        ("Save As…", "შენახვა როგორც…"),
+        ("Undo", "დაბრუნება"),
+        ("File", "ფაილი"),
+    ] {
+        assert_eq!(tr(ka(), en), want);
+    }
+    for n in [0, 1, 2, 5, 21] {
+        assert_eq!(trn(ka(), n, "{n} Layer", "{n} Layers"), format!("შრე: {n}"));
+    }
+    assert_eq!(tr_ctx(ka(), "axis", "Both"), "ორივე");
+    assert_eq!(tr_id(ka(), "pathfinder.add", "Add"), "გაერთიანება");
+    let nested = "command `object.group` is not available right now: nothing selected";
+    assert_eq!(message(ka(), nested), "ბრძანება `object.group` ახლა ხელმისაწვდომი არ არის: არაფერია მონიშნული");
+    // No Mtavruli: Georgian UI text has no capitals.
+    let (entries, _) = parse_entries(ka().0.source);
+    let caps: Vec<_> = entries.iter().filter(|(_, _, tr)| tr.chars().any(|c| matches!(c, '\u{1C90}'..='\u{1CBF}'))).collect();
+    assert!(caps.is_empty(), "Mtavruli in ka.tsv: {caps:?}");
 }
 
 fn hu() -> Lang {
@@ -1163,7 +1209,7 @@ fn select_key_param_error_is_translated() {
 }
 
 /// Languages whose catalogs cover every status and error message.
-const COMPLETE_MESSAGES: &[&str] = &["cs", "de", "es", "fr", "hu", "it", "ja", "ko", "pl", "ru", "uk", "vi"];
+const COMPLETE_MESSAGES: &[&str] = &["cs", "de", "es", "fr", "hu", "it", "ja", "ka", "ko", "pl", "ru", "uk", "vi"];
 
 /// Crates whose error and status messages reach the status bar.
 const MESSAGE_CRATES: &[&str] = &["ui-egui", "engine", "doc", "format", "svg", "pdf", "eps", "text", "plugins", "metafile", "cad", "trace"];

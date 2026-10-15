@@ -94,7 +94,7 @@ fn plural_polish(n: u64) -> usize {
 }
 
 /// The registry. English first: it is the fallback and the source language.
-pub static LANGUAGES: [LangInfo; 16] = [
+pub static LANGUAGES: [LangInfo; 17] = [
     LangInfo { code: "en", name: "English", source: "", plural: plural_one_other, complete_menus: false, catalog: OnceLock::new() },
     // Japanese: the whole interface (every menu string and `tl!` literal) and the status and error
     // messages, keeping the product, workspace and perspective preset names in English (`MENU_KEEP_AS_IS`).
@@ -143,6 +143,12 @@ pub static LANGUAGES: [LangInfo; 16] = [
         plural: plural_one_other,
         complete_menus: true,
         catalog: OnceLock::new(),
+    },
+    // Georgian: the whole interface and the status and error messages, keeping the same names in
+    // English as Spanish. Georgian nouns stay singular after a number, so one plural form;
+    // `ka-GE` and `ka_GE.UTF-8` resolve here.
+    LangInfo {
+        code: "ka", name: "ქართული", source: include_str!("ka.tsv"), plural: plural_none, complete_menus: true, catalog: OnceLock::new()
     },
     // Russian: the whole interface and the status and error messages, keeping the same names in
     // English as Spanish; every `ru-*` locale (`ru-RU`, `ru-BY`, `ru-KZ` …) resolves here.
