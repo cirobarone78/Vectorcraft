@@ -2026,6 +2026,7 @@
 	Pathfinder Options…	Opciones de Buscatrazos…
 	Pathfinders:	Buscatrazos:
 	Paths	Trazados
+	Path Length	Longitud de los trazados
 	Paths: {paths}    Anchors: {anchors}    Colors: {colors}	Trazados: {paths}    Anclas: {anchors}    Colores: {colors}
 	Pattern	Motivo
 	Pattern Editing	Edición de motivo
