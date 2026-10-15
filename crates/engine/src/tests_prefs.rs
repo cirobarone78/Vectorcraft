@@ -1164,6 +1164,18 @@ fn show_font_names_in_english_preference_is_stored() {
     assert!(s.prefs.font_names_in_english);
 }
 
+/// Preferences › Type › Highlight Alternate Glyphs (#394): off by default so OpenType
+/// substitutions are not pink on every canvas until the user turns the preference on.
+#[test]
+fn highlight_alternate_glyphs_preference_is_off_by_default() {
+    let mut s = Session::new();
+    assert!(!s.prefs.highlight_alternate_glyphs, "off by default");
+    set_pref(&mut s, "highlightAlternateGlyphs", json!(true));
+    assert!(s.prefs.highlight_alternate_glyphs);
+    set_pref(&mut s, "highlightAlternateGlyphs", json!(false));
+    assert!(!s.prefs.highlight_alternate_glyphs);
+}
+
 /// Preferences › Hyphenation › Exceptions (#394): `prefs.set` pushes the list into the hyphenator
 /// and bumps open documents so type reflows. Parsing of the list is covered in `vectorcraft-text`.
 #[test]
