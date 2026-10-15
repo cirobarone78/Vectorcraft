@@ -95,15 +95,57 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         crate::chrome::anchor_buttons(app, ui, anchors);
     }
     divider(ui);
+    let is_clip_group = matches!(first.as_ref().map(|n| &n.kind), Some(NodeKind::Group { clip: true, .. }));
+    let is_powerclip = first.as_ref().is_some_and(|n| {
+        matches!(&n.kind, NodeKind::Group { clip: true, children } if children.first().is_some_and(|c| {
+            n.name.as_deref() == Some("PowerClip") || c.clip_paint().fill.is_some() || c.clip_paint().stroke.is_some()
+        }))
+    });
+    if is_powerclip {
+        section_header(ui, tl!("PowerClip"));
+        let w = (ui.available_width() - 6.0) / 2.0;
+        ui.horizontal(|ui| {
+            if widgets::flat_button(ui, tl!("Edit Contents"), w).clicked() {
+                crate::menus::invoke(app, "object.powerclip.editContents", json!({}));
+            }
+            if widgets::flat_button(ui, tl!("Extract Contents"), w).clicked() {
+                crate::menus::invoke(app, "object.powerclip.extract", json!({}));
+            }
+        });
+        ui.horizontal(|ui| {
+            if widgets::flat_button(ui, tl!("Select Contents"), w).clicked() {
+                crate::menus::invoke(app, "object.powerclip.selectContents", json!({}));
+            }
+            if widgets::flat_button(ui, tl!("Center"), w).clicked() {
+                crate::menus::invoke(app, "object.powerclip.fit", json!({"mode": "center"}));
+            }
+        });
+        ui.horizontal(|ui| {
+            let w3 = (ui.available_width() - 12.0) / 3.0;
+            if widgets::flat_button(ui, tl!("Fit"), w3).clicked() {
+                crate::menus::invoke(app, "object.powerclip.fit", json!({"mode": "fitProportional"}));
+            }
+            if widgets::flat_button(ui, tl!("Fill"), w3).clicked() {
+                crate::menus::invoke(app, "object.powerclip.fit", json!({"mode": "fillFrame"}));
+            }
+            if widgets::flat_button(ui, tl!("Stretch"), w3).clicked() {
+                crate::menus::invoke(app, "object.powerclip.fit", json!({"mode": "stretch"}));
+            }
+        });
+        divider(ui);
+    }
     section_header(ui, tl!("Quick Actions"));
     let is_group = matches!(first.as_ref().map(|n| &n.kind), Some(NodeKind::Group { .. }));
     let is_live = matches!(first.as_ref().map(|n| &n.kind), Some(NodeKind::Path { live: Some(l), .. }) if !matches!(**l, LiveShape::Path { .. }));
     let mut actions: Vec<(&str, &str)> = vec![];
     if n_sel > 1 {
         actions.push((tl!("Group"), "object.group"));
+        actions.push((tl!("PowerClip Inside"), "object.powerclip.placeInside"));
         actions.push((tl!("Make Clipping Mask"), "object.clippingMask.make"));
+    } else if n_sel == 1 && !is_clip_group {
+        actions.push((tl!("PowerClip Inside"), "object.powerclip.placeInside"));
     }
-    if is_group {
+    if is_group && !is_clip_group {
         actions.push((tl!("Ungroup"), "object.ungroup"));
         actions.push((tl!("Isolate Group"), "object.isolate"));
     }

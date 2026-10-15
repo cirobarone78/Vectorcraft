@@ -3741,3 +3741,25 @@ lighting	Light	光源
 	Softness	柔和度
 	Ambient Light	環境光
 	Light behind the object	光源位於物件後方
+	Center	置中
+	Center Contents	置中內容
+	Click a container frame to place inside	按一下容器框架以置入內部
+	Don't show again	不再顯示
+	Edit PowerClip	編輯 PowerClip
+	Extract Contents	擷取內容
+	Extract PowerClip Contents	擷取 PowerClip 內容
+	Fill Frame Proportionally	等比例填滿框架
+	Finish Editing PowerClip	完成編輯 PowerClip
+	Fit	符合
+	Fit PowerClip Contents	符合 PowerClip 內容
+	Fit Proportionally	等比例符合
+	Place Inside Frame	置入框架內部
+	PowerClip	PowerClip
+	PowerClip Inside	PowerClip 置入
+	PowerClip Options	PowerClip 選項
+	PowerClip Options…	PowerClip 選項…
+	PowerClip Tool	PowerClip 工具
+	Select Contents	選取內容
+	Select PowerClip Contents	選取 PowerClip 內容
+	Stretch	延展
+	Stretch to Fill	延展以填滿

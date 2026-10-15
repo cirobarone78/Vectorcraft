@@ -20,6 +20,7 @@ pub fn exists(name: &str) -> bool {
 pub fn tool_icon(name: &str) -> &'static str {
     match name {
         "tool-selection" => "dc-selection",
+        "tool-powerclip" => "frame",
         "tool-direct" => "dc-direct",
         "tool-group-select" => "dc-group-select",
         "tool-magic-wand" => "wand-sparkles",

@@ -62,6 +62,7 @@ pub mod place;
 pub mod placement_options;
 pub mod plugin;
 mod png_options;
+pub mod powerclip;
 pub mod print;
 pub mod print_presets;
 mod psd_options;
@@ -307,6 +308,7 @@ registry! {
     LayersPanelOptions: [layers_panel_options::KIND] => layers_panel_options::SPEC,
     RearrangeArtboards: [rearrange_artboards::KIND] => rearrange_artboards::SPEC,
     ShortcutImport: [shortcut_import::KIND] => DialogSpec::window(shortcut_import::show, shortcut_import::confirm),
+    PowerClipOptions: [powerclip::KIND] => powerclip::SPEC,
 }
 
 /// The button labels the shared dialog frame can show (OK, discard and the fixed Cancel/Close),

@@ -62,11 +62,13 @@ pub struct HitOptions {
     /// (point type's baseline, area type's frame, type on a path's path), not anywhere in its
     /// bounds.
     pub type_path_only: bool,
+    /// Container node where clipping mask is deactivated during isolation mode.
+    pub unclipped: Option<NodeId>,
 }
 
 impl Default for HitOptions {
     fn default() -> Self {
-        Self { tol: 3.0, outline: false, path_only: false, type_path_only: false, scope: None }
+        Self { tol: 3.0, outline: false, path_only: false, type_path_only: false, unclipped: None, scope: None }
     }
 }
 
@@ -202,6 +204,10 @@ fn hit_test_skipping(doc: &Document, p: Point, opt: HitOptions, skip: &dyn Fn(No
         if editable_only && doc.pattern_edit.as_ref().is_some_and(|e| e.layer != layer.id) {
             continue;
         }
+        // When unclipped isolation is active, only layers containing the isolated container can be hit.
+        if opt.unclipped.is_some_and(|iso| !is_or_contains(layer, iso)) {
+            continue;
+        }
         chain.push(layer.id);
         let opt = if matches!(layer.kind, NodeKind::Layer { preview: false, .. }) { HitOptions { outline: true, ..opt } } else { opt };
         if let Some(h) = hit_children(layer, p, opt, &symbols, skip, &mut chain, editable_only) {
@@ -227,6 +233,16 @@ fn clip_contains(clip: &Node, p: Point) -> bool {
     clip.clip_shapes(Some(&frame)).iter().any(|(bp, rule)| fill_contains(bp, *rule, p))
 }
 
+fn is_or_contains(n: &Node, target: NodeId) -> bool {
+    let mut found = false;
+    n.walk(&mut |c| {
+        if c.id == target {
+            found = true;
+        }
+    });
+    found
+}
+
 /// Can a click at `p` hit `c`, the child `i` of `parent`, or something inside it? Not when it is
 /// hidden, when it can't be edited (`editable_only`), when it is the part of a Shaper group that
 /// isn't shown, or when `p` is outside its reach.
@@ -239,8 +255,12 @@ fn may_hit(parent: &Node, i: usize, c: &Node, p: Point, opt: HitOptions, symbols
     if !c.visible || editable_only && (c.locked || c.is_template()) {
         return false;
     }
+    // When unclipped isolation is active, the container and its ancestors must not be culled
+    // by reach_bounds (which is restricted to the container's clip path).
+    let unclipped_node = opt.unclipped.is_some_and(|u| is_or_contains(c, u));
     // (An envelope's content sits where it was, not where the envelope draws it.)
     edits_contents(c)
+        || unclipped_node
         || c.extras().shaper.is_some() && source_isolated(c)
         || c.reach_bounds_with(symbols).is_none_or(|b| b.inflate(opt.tol, opt.tol).contains(p))
 }
@@ -255,14 +275,25 @@ fn hit_children(
     editable_only: bool,
 ) -> Option<Hit> {
     let children = parent.children()?;
-    // A clip group (or a layer with a clipping mask) only hits inside its clipping path.
+    // A clip group (or a layer with a clipping mask) only hits inside its clipping path,
+    // unless unclipped isolation is active on this container or one of its ancestors.
+    let is_unclipped = opt.unclipped.is_some_and(|u| parent.id == u || chain.contains(&u));
     if parent.clips()
+        && !is_unclipped
         && let Some(clip) = children.first()
         && !clip_contains(clip, p)
     {
         return None;
     }
     for (i, c) in children.iter().enumerate().rev() {
+        // When unclipped isolation is active, ignore sibling branches outside the isolated container.
+        if let Some(iso) = opt.unclipped
+            && !chain.contains(&iso)
+            && parent.id != iso
+            && !is_or_contains(c, iso)
+        {
+            continue;
+        }
         if !may_hit(parent, i, c, p, opt, symbols, editable_only) || skip(c.id) {
             continue;
         }
@@ -900,5 +931,33 @@ world",
         d.node_mut(a).unwrap().visible = true;
         d.node_mut(l).unwrap().visible = false;
         assert!(hit_test_visible(&d, p, HitOptions::default()).is_none());
+    }
+
+    #[test]
+    fn unclipped_isolation_hits_content_outside_container() {
+        let mut d = Document::new(300.0, 300.0);
+        let l = d.layers[0].id;
+        let container_id = d.alloc_id();
+        let clip_path = Node::path(container_id, shapes::rectangle(Rect::new(0.0, 0.0, 50.0, 50.0)), Appearance::default_art());
+
+        let content_id = d.alloc_id();
+        let content_path = Node::path(content_id, shapes::rectangle(Rect::new(100.0, 100.0, 150.0, 150.0)), Appearance::default_art());
+
+        let g = d.alloc_id();
+        let mut grp = Node::group(g, vec![Arc::new(clip_path), Arc::new(content_path)]);
+        if let NodeKind::Group { clip, .. } = &mut grp.kind {
+            *clip = true;
+        }
+        d.insert(Some(l), 0, grp).unwrap();
+
+        let pt = Point::new(120.0, 120.0);
+
+        // When NOT in unclipped isolation mode, hitting outside container misses
+        assert!(hit_test(&d, pt, HitOptions::default()).is_none());
+
+        // When unclipped isolation is active on the container, hitting outside container hits the content!
+        let h = hit_test(&d, pt, HitOptions { unclipped: Some(g), ..Default::default() }).unwrap();
+        assert_eq!(h.leaf, content_id);
+        assert_eq!(h.top_object(Some(g)), content_id);
     }
 }

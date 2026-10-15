@@ -1924,6 +1924,8 @@ mod tests_placed_document;
 #[cfg(test)]
 mod tests_plugins;
 #[cfg(test)]
+mod tests_powerclip;
+#[cfg(test)]
 mod tests_prefs;
 #[cfg(test)]
 mod tests_previewbounds;

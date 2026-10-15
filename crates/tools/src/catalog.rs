@@ -18,7 +18,7 @@ const fn t(id: &'static str, label: &'static str, shortcut: Option<&'static str>
 
 /// Toolbar groups in order; the first tool of each group is the default visible one.
 pub const TOOL_GROUPS: &[&[ToolInfo]] = &[
-    &[t("selection", "Selection Tool", Some("V"), "tool-selection")],
+    &[t("selection", "Selection Tool", Some("V"), "tool-selection"), t("powerclip", "PowerClip Tool", None, "tool-powerclip")],
     &[
         t("directSelection", "Direct Selection Tool", Some("A"), "tool-direct"),
         t("groupSelection", "Group Selection Tool", None, "tool-group-select"),

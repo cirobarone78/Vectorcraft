@@ -24,6 +24,7 @@ pub mod params;
 pub mod pathtype;
 pub mod pen;
 pub mod place;
+pub mod powerclip;
 pub mod printtiling;
 pub mod rulerguide;
 pub mod select;
@@ -384,6 +385,7 @@ impl ToolContext<'_> {
             path_only: self.path_only,
             type_path_only: self.type_path_only,
             scope: self.isolation,
+            unclipped: self.isolation,
         }
     }
 }
@@ -605,6 +607,7 @@ pub fn create(id: &str) -> Box<dyn Tool> {
         "rectangle" | "roundedRectangle" | "ellipse" | "polygon" | "star" | "lineSegment" => Box::new(shape::ShapeTool::new(id)),
         // Not in the toolbar: `file.place.queue` loads it.
         "place" => Box::new(place::PlaceTool::default()),
+        "powerclip" => Box::new(powerclip::PowerClipTool::default()),
         other => symbolism::create(other)
             .or_else(|| builder::create(other))
             .or_else(|| draw2::create(other))

@@ -907,6 +907,7 @@ pub const UI_COMMANDS: &[(&str, &str, &str, &str)] = &[
         "",
         "{plane?: left|right|ground (default: the active plane)} open the plane's options, as double-clicking its plane widget does (dialog `perspectivePlane`: location (pt along the plane's normal), objects: none|move|copy): OK runs perspective.plane.move",
     ),
+    ("object.powerclip.options", "PowerClip Options…", "", "{} open the PowerClip Options dialog (Object › PowerClip › PowerClip Options…)"),
 ];
 
 /// Canonical panel id for `window.panel`: a dock tab's or an icon panel's id or display label,
@@ -1481,6 +1482,7 @@ pub fn run_ui_command(app: &mut VectorcraftApp, id: &str, p: &Value) -> Option<R
         },
         "ui.blendOptions" => crate::dialogs::blend_options::open(app),
         "ui.perspectivePlane" => crate::dialogs::perspective_plane::open(app, p),
+        "object.powerclip.options" => crate::dialogs::powerclip::open_options(app),
         _ => return None,
     };
     Some(r)
@@ -2385,6 +2387,24 @@ pub fn menu_tree_named(english_names: bool) -> Vec<(&'static str, Vec<Item>)> {
                         c("Edit Clipping Path", "object.clippingMask.editMask"),
                     ],
                 ),
+                sub(
+                    "PowerClip",
+                    vec![
+                        c("PowerClip Inside", "object.powerclip.placeInside"),
+                        c("Extract PowerClip Contents", "object.powerclip.extract"),
+                        c("Select PowerClip Contents", "object.powerclip.selectContents"),
+                        Sep,
+                        c("Center Contents", "object.powerclip.center"),
+                        cp("Fit Proportionally", "object.powerclip.fit", json!({"mode": "fitProportional"})),
+                        cp("Fill Frame Proportionally", "object.powerclip.fit", json!({"mode": "fillFrame"})),
+                        cp("Stretch to Fill", "object.powerclip.fit", json!({"mode": "stretch"})),
+                        Sep,
+                        c("Edit PowerClip", "object.powerclip.editContents"),
+                        c("Finish Editing PowerClip", "object.powerclip.finishEdit"),
+                        Sep,
+                        c("PowerClip Options…", "object.powerclip.options"),
+                    ],
+                ),
                 sub("Compound Path", vec![c("Make", "object.compoundPath.make"), c("Release", "object.compoundPath.release")]),
                 sub(
                     "Artboards",
@@ -2799,8 +2819,13 @@ pub fn context_items(app: &VectorcraftApp) -> Vec<Item> {
         if several {
             v.push(c("Make Clipping Mask", "object.clippingMask.make"));
         }
+        v.push(c("PowerClip Inside", "object.powerclip.placeInside"));
         if any(|k| matches!(k, NodeKind::Group { clip: true, .. })) {
             v.push(c("Release Clipping Mask", "object.clippingMask.release"));
+            v.push(c("Extract PowerClip Contents", "object.powerclip.extract"));
+            v.push(c("Select PowerClip Contents", "object.powerclip.selectContents"));
+            v.push(c("Center Contents", "object.powerclip.center"));
+            v.push(c("Edit PowerClip", "object.powerclip.editContents"));
         }
         if several && paths {
             v.push(c("Make Compound Path", "object.compoundPath.make"));
@@ -3041,7 +3066,7 @@ pub(crate) fn home_showing(app: &VectorcraftApp) -> bool {
 pub fn click_target(label: &str, id: &str, p: &Value) -> (String, Value) {
     let dialog = label.ends_with('…')
         && p.as_object().is_some_and(|o| !o.is_empty())
-        && !matches!(id, "effect.dialog" | "window.panel" | "window.brightness" | "view.screenMode" | "plugin.dialog");
+        && !matches!(id, "effect.dialog" | "window.panel" | "window.brightness" | "view.screenMode" | "plugin.dialog" | "tool.select");
     if dialog {
         return ("ui.paramDialog".into(), json!({"command": id, "label": label.trim_end_matches('…'), "params": p}));
     }
@@ -3270,6 +3295,23 @@ pub fn invoke(app: &mut VectorcraftApp, id: &str, p: Value) {
     // Help links: the command returns the URL; a menu click opens it (agents just get the URL).
     if matches!(id, "help.discord" | "help.website" | "help.appPage" | "help.github") {
         app.open_link(id);
+        return;
+    }
+    // PowerClip Options…: opens standalone options dialog to configure defaults.
+    if id == "object.powerclip.options" {
+        if let Err(e) = crate::dialogs::powerclip::open_options(app) {
+            app.status(e);
+        }
+        return;
+    }
+    // Place Inside (PowerClip): prompts for options or applies directly if suppressed.
+    if id == "object.powerclip.placeInside" && p.get("center").is_none() && p.get("fit").is_none() {
+        let container = p.get("container").and_then(Value::as_u64);
+        let contents =
+            p.get("contents").and_then(Value::as_array).map(|arr| arr.iter().filter_map(Value::as_u64).collect::<Vec<_>>()).unwrap_or_default();
+        if let Err(e) = crate::dialogs::powerclip::prompt_or_place(app, container, contents) {
+            app.status(e);
+        }
         return;
     }
     // Object → Align aligns to what the align buttons align to, unless the call names `to`. With

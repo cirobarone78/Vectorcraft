@@ -926,7 +926,7 @@ fn clip_edit(s: &mut Session, mask: bool) -> Result<Value> {
     Ok(json!({ "count": ids.len() }))
 }
 
-fn isolate(s: &mut Session, p: &Value) -> Result<Value> {
+pub(crate) fn isolate(s: &mut Session, p: &Value) -> Result<Value> {
     let id = id_param(p, "id")
         .or_else(|| s.active().and_then(|d| d.selection.objects.first().copied()))
         .ok_or_else(|| bad("object.isolate", "missing id"))?;
@@ -943,7 +943,7 @@ fn isolate(s: &mut Session, p: &Value) -> Result<Value> {
     ok()
 }
 
-fn exit_isolation(s: &mut Session, _: &Value) -> Result<Value> {
+pub(crate) fn exit_isolation(s: &mut Session, _: &Value) -> Result<Value> {
     let st = s.doc_mut()?;
     if let Some(i) = st.isolation.take() {
         super::distortcmds::finish_edit_text(st, i);

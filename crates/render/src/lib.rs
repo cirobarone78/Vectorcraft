@@ -142,6 +142,8 @@ pub struct RenderOptions {
     /// Appearance of Black's Rich Black: pure CMYK black (black ink alone at 100%) shows as RGB
     /// black. Off, it shows through the CMYK profile, a dark grey, as other colours do.
     pub rich_black: bool,
+    /// Container node ID where clipping mask is deactivated during isolation/editing.
+    pub unclipped_isolation: Option<NodeId>,
 }
 
 /// The opacity of the art around an isolated group or layer.
@@ -219,6 +221,7 @@ impl Default for RenderOptions {
             image_mips: false,
             interacting: false,
             rich_black: false,
+            unclipped_isolation: None,
         }
     }
 }
@@ -1198,6 +1201,9 @@ impl Renderer {
                 }
             }
             NodeKind::Group { children, clip: true } | NodeKind::Layer { children, clip: true, .. } => {
+                // When editing a PowerClip in isolation mode, de-activate the clipping mask so that
+                // artwork outside the container bounds can be viewed, transformed, and edited.
+                let unclipped = f.opts.unclipped_isolation == Some(n.id);
                 // Nothing to clip by hides the clipped art (as in the SVG and PDF output). A clip
                 // group doesn't isolate: blending inside it reaches the art below. The clipping
                 // path's fill paints behind the clipped art and its stroke over it, unclipped.
@@ -1205,6 +1211,13 @@ impl Renderer {
                     && let Some(region) = self.clip_of(clip)
                 {
                     let (fill, stroke) = self.clip_paint_of(clip);
+                    if unclipped {
+                        // When editing PowerClip contents, draw children unclipped and turn the
+                        // container wrapper shape into an active blue wireframe indicator.
+                        self.draw_children(ctx, f, rest, knockout);
+                        self.hairline(ctx, f, &region.0, [0x00, 0x88, 0xff, 255]);
+                        return;
+                    }
                     // An image inside its own frame painted straight into the clipping path, without
                     // a clip layer (envelopes cut distorted images into many such pieces).
                     if let ([image], None, None) = (rest, &fill, &stroke)

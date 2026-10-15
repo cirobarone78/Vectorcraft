@@ -420,6 +420,9 @@ pub struct UiState {
     /// never used).
     #[serde(default)]
     pub dxf_import: Value,
+    /// PowerClip placement options (auto_center, fit_mode, suppress_dialog).
+    #[serde(default = "default_powerclip_options")]
+    pub powerclip_options: Value,
     /// The Home screen is shown over the open documents (`app.home`): the active document's uid
     /// and the document count when it opened. Choosing a tab, or a document opening, closing or
     /// becoming active, leaves it.
@@ -726,6 +729,7 @@ impl Default for UiState {
             eps_options: Value::Null,
             offset_path: Value::Null,
             dxf_import: Value::Null,
+            powerclip_options: default_powerclip_options(),
             home: None,
             layers_panel: Default::default(),
             image_trace_advanced: true,
@@ -736,6 +740,14 @@ impl Default for UiState {
 
 fn yes() -> bool {
     true
+}
+
+fn default_powerclip_options() -> Value {
+    serde_json::json!({
+        "auto_center": true,
+        "fit_mode": "none",
+        "suppress_dialog": false,
+    })
 }
 
 fn default_shortcut_set() -> String {

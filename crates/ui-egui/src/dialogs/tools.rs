@@ -93,6 +93,15 @@ pub fn open_tool_dialog(app: &mut VectorcraftApp, kind: &str, p: Value) {
             }
             return;
         }
+        super::powerclip::KIND => {
+            let container = p.get("container").and_then(Value::as_u64);
+            let contents =
+                p.get("contents").and_then(Value::as_array).map(|arr| arr.iter().filter_map(Value::as_u64).collect::<Vec<_>>()).unwrap_or_default();
+            if let Err(e) = super::powerclip::prompt_or_place(app, container, contents) {
+                app.status(e);
+            }
+            return;
+        }
         _ => return,
     };
     app.ui.dialog = Some(d);

@@ -902,3 +902,89 @@ fn polar_grid_shared_cancel_reopen_zero_counts_and_failed_creation() {
     assert_eq!(app.session.tool_options_of("polarGrid"), options);
     assert_eq!(app.session.doc().unwrap().doc, before);
 }
+
+#[test]
+fn powerclip_dialog_workflow() {
+    let mut app = app();
+    let r1 = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 50, "height": 50})).unwrap();
+    let r2 = app.run("shape.ellipse", json!({"x": 100, "y": 100, "width": 20, "height": 20})).unwrap();
+    let container_id = r1["id"].as_u64().unwrap();
+    let content_id = r2["id"].as_u64().unwrap();
+
+    // 1. Standalone open_options opens 300x200 options dialog
+    crate::dialogs::powerclip::open_options(&mut app).unwrap();
+    assert!(app.ui.dialog.is_some());
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!(d.kind, crate::dialogs::powerclip::KIND);
+    assert!(d.bool("center"));
+    assert_eq!(d.str("fit_mode"), "none");
+
+    // Render frame to ensure UI drawing does not panic
+    frame(&mut app, Default::default());
+
+    // 2. Modify options and confirm
+    if let Some(d) = app.ui.dialog.as_mut() {
+        d.fields.insert("fit_mode".into(), json!("fitProportional"));
+    }
+    let d = app.ui.dialog.clone().unwrap();
+    (crate::dialogs::powerclip::SPEC.confirm)(&mut app, &d).unwrap();
+
+    // Dialog is closed, preferences saved
+    assert!(app.ui.dialog.is_none());
+    assert_eq!(app.ui.powerclip_options["fit_mode"], "fitProportional");
+
+    // 3. prompt_or_place shows the modal dialog when suppress_dialog is false
+    crate::dialogs::powerclip::prompt_or_place(&mut app, Some(container_id), vec![content_id]).unwrap();
+    assert!(app.ui.dialog.is_some());
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!(d.kind, crate::dialogs::powerclip::KIND);
+    assert!(d.bool("pending_place"));
+
+    // Render frame with the placement dialog open
+    frame(&mut app, Default::default());
+
+    // Set dont_show_again to true and confirm
+    if let Some(d) = app.ui.dialog.as_mut() {
+        d.fields.insert("dont_show_again".into(), json!(true));
+    }
+    let d = app.ui.dialog.clone().unwrap();
+    (crate::dialogs::powerclip::SPEC.confirm)(&mut app, &d).unwrap();
+    assert!(app.ui.dialog.is_none());
+    assert_eq!(app.ui.powerclip_options["suppress_dialog"], true);
+
+    // 4. Now with suppress_dialog true, prompt_or_place executes directly without opening dialog
+    let r3 = app.run("shape.rectangle", json!({"x": 200, "y": 200, "width": 30, "height": 30})).unwrap();
+    let r4 = app.run("shape.ellipse", json!({"x": 300, "y": 300, "width": 10, "height": 10})).unwrap();
+    let c2 = r3["id"].as_u64().unwrap();
+    let cont2 = r4["id"].as_u64().unwrap();
+
+    crate::dialogs::powerclip::prompt_or_place(&mut app, Some(c2), vec![cont2]).unwrap();
+    assert!(app.ui.dialog.is_none());
+}
+
+#[test]
+fn powerclip_single_selection_dialog_and_place() {
+    let mut app = app();
+    let r1 = app.run("shape.rectangle", json!({"x": 10, "y": 10, "width": 100, "height": 100})).unwrap();
+    let r2 = app.run("shape.ellipse", json!({"x": 20, "y": 20, "width": 30, "height": 30})).unwrap();
+    let _container_id = r1["id"].as_u64().unwrap();
+    let content_id = r2["id"].as_u64().unwrap();
+
+    // Select only the ellipse
+    app.run("select.set", json!({"ids": [content_id]})).unwrap();
+
+    // Right-click menu triggers object.powerclip.placeInside
+    crate::menus::invoke(&mut app, "object.powerclip.placeInside", json!({}));
+
+    // Dialog must open
+    assert!(app.ui.dialog.is_some());
+    let d = app.ui.dialog.as_ref().unwrap();
+    assert_eq!(d.kind, crate::dialogs::powerclip::KIND);
+
+    // Confirm dialog
+    let d = app.ui.dialog.clone().unwrap();
+    (crate::dialogs::powerclip::SPEC.confirm)(&mut app, &d).unwrap();
+
+    // The single other shape (rectangle) was used as container and placed!
+    assert!(app.ui.dialog.is_none());
+}
