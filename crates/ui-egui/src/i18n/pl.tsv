@@ -396,6 +396,7 @@
 	Round Corners…	Zaokrąglij narożniki…
 	Scribble…	Bazgroły…
 	Drop Shadow…	Cień…
+	Darkness	Zaciemnienie
 	Inner Glow…	Blask wewnętrzny…
 	Outer Glow…	Blask zewnętrzny…
 	Feather…	Wtapianie…
@@ -435,6 +436,7 @@
 	Monitor RGB	RGB monitora
 	Color blindness – Protanopia-type	Daltonizm – typu protanopia
 	Color blindness – Deuteranopia-type	Daltonizm – typu deuteranopia
+	Color blindness – Tritanopia-type	Daltonizm – typu tritanopia
 	Customize…	Dostosuj…
 	Proof Colors	Próba kolorów
 	Zoom In	Powiększ
@@ -612,6 +614,7 @@
 	Auto Color	Kolor automatyczny
 	Automatic	Automatycznie
 	Isolate Selected Group	Izoluj zaznaczoną grupę
+	Isolate Selected Object	Izoluj zaznaczony obiekt
 	Exit Isolation Mode	Wyjdź z trybu izolacji
 	Make Clipping Mask	Utwórz maskę przycinającą
 	Release Clipping Mask	Uwolnij maskę przycinającą
@@ -840,6 +843,7 @@ lighting	Light	Światło
 	Options for Selection…	Opcje zaznaczenia…
 	Panel Options…	Opcje panelu…
 	Panels	Panele
+	Panels Except Tools and Control	Panele oprócz narzędzi i sterowania
 	Perspective Plane Options…	Opcje płaszczyzny perspektywy…
 	Placement Options…	Opcje umieszczania…
 	Plug-in…	Wtyczka…
@@ -1992,6 +1996,7 @@ lighting	Light	Światło
 	Edit selected paths within:	Edytuj zaznaczone ścieżki w odległości:
 	Fidelity:	Wierność:
 	Fill new strokes	Wypełniaj nowe pociągnięcia
+	Keep selected	Zachowaj zaznaczenie
 	The document has no colour swatches.	Dokument nie zawiera próbek kolorów.
 	Style Name:	Nazwa stylu:
 	Crop To	Kadruj do
@@ -2603,6 +2608,9 @@ effect	Vertical	Pionowo
 	Clear Appearance	Wyczyść wygląd
 	Duplicate Item	Powiel element
 	Eyedropper	Kroplomierz
+	Sample Color from Screen	Pobierz kolor z ekranu
+	This system has no screen color sampler	Ten system nie ma narzędzia do pobierania koloru z ekranu
+	The active document changed while the screen color sampler was open	Aktywny dokument zmienił się, gdy narzędzie do pobierania koloru z ekranu było otwarte
 	Move Appearance	Przesuń wygląd
 	Reduce to Basic Appearance	Ogranicz do wyglądu podstawowego
 	Remove Item	Usuń element
@@ -3282,6 +3290,7 @@ axis	Both	Obie
 	Area / Path Type	Tekst akapitowy / na ścieżce
 	Decrease Font Size	Zmniejsz rozmiar czcionki
 	Increase Font Size	Zwiększ rozmiar czcionki
+	Reset Tracking and Kerning	Resetuj światło i kerning
 	Step Type	Krok tekstu
 	Get Text Range	Pobierz zakres tekstu
 	Punctuation	Interpunkcja
@@ -3617,6 +3626,8 @@ imageTrace	Outline	Kontur
 @msg	its type is to come in as outlines, which only its page has	jego tekst ma zostać wczytany jako kontury, które ma tylko jego strona
 @msg	the art on them differs from the page's in {_1}% of it	kompozycja na nich różni się od strony w {_1}%
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	kompozycja na nich różni się od strony w {_1}%: mimo to są wczytywane z danych edycyjnych
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	nie odczytano warstw pliku ({_1}): plik jest wczytywany jako jego strona, na jednej warstwie
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	nie odczytano warstw pliku z jego danych edycyjnych ({_1}): pochodzą z jego części PDF
 @msg	`to` must be "corner" or "smooth"	`to` musi mieć wartość "corner" lub "smooth"
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	Pliki BMP są w RGB lub skali szarości: colorModel rgb lub gray
 @msg	Blend colors: select at least three objects with filled colours	Przejście kolorów: zaznacz co najmniej trzy obiekty z wypełnieniem kolorem
@@ -3758,6 +3769,9 @@ imageTrace	Outline	Kontur
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	oś musi mieć wartość "vertical", "horizontal" lub kąt w stopniach, nie `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	tło {other}: transparent, white, black lub kolor, np. "#ff8800"
 @msg	bad color {v}	nieprawidłowy kolor {v}
+@msg	the Color Picker is not open	Próbnik kolorów nie jest otwarty
+@msg	the screen color sampler is already open	narzędzie do pobierania koloru z ekranu jest już otwarte
+@msg	this system has no screen color sampler	ten system nie ma narzędzia do pobierania koloru z ekranu
 @msg	bad colour `{hex}` (#rrggbb)	nieprawidłowy kolor `{hex}` (#rrggbb)
 @msg	bad page tree	nieprawidłowe drzewo stron
 @msg	bad shortcut	nieprawidłowy skrót
@@ -4711,3 +4725,4 @@ mark-style	Japanese	Japońskie
 @msg	Unknown unit	Nieznana jednostka
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Zamknij okrągłe końce otwartych profili. Przy częściowym obrocie boki przekroju pozostają otwarte.
+	Distance	Odległość

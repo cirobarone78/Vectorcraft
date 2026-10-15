@@ -5,7 +5,7 @@
 //! dataset, and `dataset.select` swaps the whole document to that row in one undo
 //! step. Agents reach every command through `run_command`, like all engine commands.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Value, json};
 use vectorcraft_doc::{DataSet, DataValue, NodeId, NodeKind, Variable, VariableKind, Variables};
@@ -55,7 +55,7 @@ fn check_bindable(doc: &vectorcraft_doc::Document, ids: &[NodeId], kind: Variabl
     for id in ids {
         match doc.node(*id) {
             None => return Err(EngineError::NoNode(*id)),
-            Some(_) if !doc.variable_target(*id) => return Err(bad(cmd, format!("node {} is locked", id.0))),
+            Some(_) if !doc.variable_target(*id) => return Err(bad(cmd, not_a_target(doc, *id))),
             Some(n) if kind == VariableKind::Text && !matches!(n.kind, NodeKind::Text(_)) => {
                 return Err(bad(cmd, format!("node {} is not type", id.0)));
             }
@@ -63,6 +63,20 @@ fn check_bindable(doc: &vectorcraft_doc::Document, ids: &[NodeId], kind: Variabl
         }
     }
     Ok(())
+}
+
+/// Why `variable_target` refuses `id`: the object is locked, a group or layer that holds it is
+/// locked, or one that holds it is hidden, checked in that order.
+fn not_a_target(doc: &vectorcraft_doc::Document, id: NodeId) -> String {
+    let holders: Vec<&vectorcraft_doc::Node> =
+        doc.ancestry(id).unwrap_or_default().into_iter().filter(|i| *i != id).filter_map(|i| doc.node(i)).collect();
+    if doc.node(id).is_some_and(|n| n.locked) {
+        format!("node {} is locked", id.0)
+    } else if holders.iter().any(|n| n.locked) {
+        format!("node {} is in a locked group or layer", id.0)
+    } else {
+        format!("node {} is in a hidden group or layer", id.0)
+    }
 }
 
 fn dataset_value(cmd: &str, var: &str, kind: VariableKind, v: &Value) -> Result<DataValue> {
@@ -136,13 +150,14 @@ fn rename(s: &mut Session, p: &Value) -> Result<Value> {
 /// Make Text Dynamic / Make Visibility Dynamic: define a variable of that kind and bind the
 /// selection to it in one step, naming it after what it drives — the panel's buttons.
 fn make_dynamic(s: &mut Session, kind: VariableKind, stem: &str) -> Result<Value> {
-    const C: &str = "variable.makeDynamic";
+    // Errors name the command that ran: `variable.make{stem}Dynamic`.
+    let c = &format!("variable.make{stem}Dynamic");
     let ids = selected_roots(s)?;
     if ids.is_empty() {
-        return Err(bad(C, "select the objects to bind"));
+        return Err(bad(c, "select the objects to bind"));
     }
     let doc = &s.doc()?.doc;
-    check_bindable(doc, &ids, kind, C)?;
+    check_bindable(doc, &ids, kind, c)?;
     // Named after the first object it drives, as the reference panel does; a second variable
     // over the same art takes a number rather than colliding.
     let shown = ids.first().and_then(|id| doc.node(*id)).map(|n| n.display_name()).unwrap_or_default();
@@ -327,10 +342,14 @@ fn dataset_capture(s: &mut Session, p: &Value) -> Result<Value> {
     Ok(json!({"name": name, "values": values.len()}))
 }
 
-/// Update Data Set: write what the bound objects hold now into the row that is active. Without
-/// an active row there is nothing to update, so say so rather than picking one.
-fn dataset_update(s: &mut Session, _p: &Value) -> Result<Value> {
+/// Update Data Set: write what the bound objects hold now into the row that is active, for each
+/// variable the row holds. A variable whose objects report no value (locked, inside a hidden or
+/// locked layer or group, or gone) keeps the row's value. With `all`, every other variable the
+/// objects report a value for is added to the row. Without an active row there is nothing to
+/// update, so say so rather than picking one.
+fn dataset_update(s: &mut Session, p: &Value) -> Result<Value> {
     const C: &str = "dataset.update";
+    let all = bool_or(p, "all", false);
     let values = s.doc()?.doc.captured_values();
     let Some(name) = s.doc()?.doc.variables.active_dataset.clone() else {
         return Err(bad(C, "no active data set"));
@@ -338,12 +357,19 @@ fn dataset_update(s: &mut Session, _p: &Value) -> Result<Value> {
     if values.is_empty() {
         return Err(bad(C, "bind something to a variable first"));
     }
-    s.edit("Update Data Set", |d, _| {
+    let (written, left) = s.edit("Update Data Set", |d, _| {
         let ds = d.variables.datasets.iter_mut().find(|d| d.name == name).ok_or_else(|| bad(C, format!("no dataset named `{name}`")))?;
-        ds.values = values.clone();
-        Ok(())
+        let mut written = BTreeSet::new();
+        for (var, value) in &values {
+            if all || ds.values.contains_key(var) {
+                ds.values.insert(var.clone(), value.clone());
+                written.insert(var.as_str());
+            }
+        }
+        let left: Vec<String> = d.variables.variables.iter().filter(|v| !written.contains(v.name.as_str())).map(|v| v.name.clone()).collect();
+        Ok((written.len(), left))
     })?;
-    Ok(json!({"name": name, "values": values.len()}))
+    Ok(json!({"name": name, "values": written, "left": left}))
 }
 
 fn dataset_delete(s: &mut Session, p: &Value) -> Result<Value> {
@@ -387,6 +413,28 @@ fn apply_dataset(s: &mut Session, name: &str) -> Result<Value> {
         for v in &d.variables.variables {
             pairs.extend(d.variables.objects_of(&v.name).into_iter().map(|id| (id, v.name.clone())));
         }
+        // The row's values go in three passes: the visibility values that show an object,
+        // outermost object first; the other values, in definition order; the visibility values
+        // that hide an object, innermost object first. An object inside a group is then rewritten
+        // after the row shows the group and before the row hides it. An object with several
+        // visibility variables goes in the pass of the last one's value, and each pass keeps
+        // definition order otherwise.
+        let mut shows = std::collections::HashMap::new();
+        for (id, var) in &pairs {
+            let kind = d.variables.variable(var).map(|v| v.kind);
+            if let (Some(VariableKind::Visibility), Some(DataValue::Visible(show))) = (kind, ds.values.get(var)) {
+                shows.insert(*id, *show);
+            }
+        }
+        let depths = d.index_paths(shows.keys().copied());
+        pairs.sort_by_cached_key(|(id, var)| {
+            let depth = depths.get(id).map_or(0, Vec::len);
+            match (d.variables.variable(var).map(|v| v.kind), shows.get(id)) {
+                (Some(VariableKind::Visibility), Some(true)) => (0, depth),
+                (Some(VariableKind::Visibility), Some(false)) => (2, usize::MAX - depth),
+                _ => (1, 0),
+            }
+        });
         let mut applied = 0usize;
         let mut skipped = 0usize;
         for (id, var) in pairs {
@@ -544,7 +592,7 @@ pub fn specs() -> Vec<CommandSpec> {
             "Update Data Set",
             ["Window", "Variables"],
             None,
-            "{} write what the bound objects hold now into the active dataset",
+            "{all?: bool} write what the bound objects hold now into the active dataset, for each variable the dataset holds; a variable whose objects report no value (locked, inside a hidden or locked layer or group, or gone) keeps the dataset's value. `all: true` also adds every other variable the objects report a value for; `left` names the variables it didn't write → {values, left}",
             has_doc,
             dataset_update
         ),

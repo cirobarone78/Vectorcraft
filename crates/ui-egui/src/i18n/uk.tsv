@@ -478,6 +478,7 @@
 	Color bars	Кольорові смуги
 	Color blindness – Deuteranopia-type	Дальтонізм - дейтеранопія
 	Color blindness – Protanopia-type	Дальтонізм - протанопія
+	Color blindness – Tritanopia-type	Дальтонізм - тританопія
 	Color Burn	Затемнення основи
 	Color conversion:	Перетворення кольору:
 	Color Dodge	Освітлення основи
@@ -646,6 +647,7 @@
 	Cyan	Блакитний
 	Dark	Темний
 	Darken	Затемнення
+	Darkness	Темність
 	dash	штрих
 	Dash Pattern	Шаблон штрихів
 	Dashed	Штриховий
@@ -999,6 +1001,9 @@
 	Export…	Експорт…
 	Extrude & Bevel…	Видавлювання та фаска…
 	Eyedropper	Піпетка
+	Sample Color from Screen	Взяти колір з екрана
+	This system has no screen color sampler	У цій системі немає засобу вибору кольору з екрана
+	The active document changed while the screen color sampler was open	Активний документ змінився, поки був відкритий засіб вибору кольору з екрана
 	Eyedropper Applies:	Піпетка застосовує:
 	Eyedropper Options	Параметри піпетки
 	Eyedropper Picks Up:	Піпетка бере:
@@ -1030,6 +1035,7 @@
 	Fill (X), double-click for the Color Picker	Заливка (X), двічі клацніть на палітрі кольорів
 	Fill and Stroke	Заливка та обведення
 	Fill new strokes	Заповнювати нові обведення
+	Keep selected	Залишати вибраним
 	Fill Color	Колір заливки
 	Fill New Type Objects With Placeholder Text	Заповнювати нові текстові об’єкти текстом-заповнювачем
 	Fill Rule	Правило заливки
@@ -1053,6 +1059,7 @@
 	Fit Headline	Підігнати заголовок
 	Decrease Font Size	Зменшити розмір шрифту
 	Increase Font Size	Збільшити розмір шрифту
+	Reset Tracking and Kerning	Скинути трекінг і кернінг
 	Spacing	Інтервал
 	Step Type	Підганяти текст кроками
 	Fit in View	Вписати у вигляд
@@ -2010,6 +2017,7 @@
 	Panel menu	Меню панелі
 	Panel Options…	Параметри панелі…
 	Panels	Панелі
+	Panels Except Tools and Control	Панелі, крім інструментів і панелі керування
 	Paragraph	Абзац
 	Paragraph Style	Стиль абзацу
 	Paragraph Style Options	Параметри стилю абзацу
@@ -3416,6 +3424,7 @@ imageTrace	Outline	Контур
 	 to set spacing and orientation	 для завдання інтервалу та орієнтації
 	:	:
 	Isolate Selected Group	Ізолювати обрану групу
+	Isolate Selected Object	Ізолювати обраний об’єкт
 	Release Clipping Mask	Звільнити відсічну маску
 	Make Compound Path	Створити складений контур
 	Release Compound Path	Звільнити складений контур
@@ -3492,6 +3501,8 @@ axis	Both	Обидві
 @msg	its type is to come in as outlines, which only its page has	його текст має прийти у вигляді контурів, а вони є лише на його сторінці
 @msg	the art on them differs from the page's in {_1}% of it	зображення на шарах відрізняється від зображення на сторінці на {_1} % площі
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	зображення на шарах відрізняється від зображення на сторінці на {_1} % площі: проте шари взято з його даних для редагування
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	шари файлу не прочитано ({_1}): він відкривається як його сторінка, на одному шарі
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	шари файлу не прочитано з його даних для редагування ({_1}): їх взято з його PDF-частини
 @msg	`to` must be "corner" or "smooth"	`to` має бути "corner" або "smooth"
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	Файли BMP бувають RGB або у відтінках сірого: colorModel rgb або gray
 @msg	Blend colors: select at least three objects with filled colours	Змішування кольорів: виберіть не менше трьох об’єктів із кольоровими заливками
@@ -3634,6 +3645,9 @@ axis	Both	Обидві
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	axis має бути "vertical", "horizontal" або кутом у градусах, а не `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	фон {other}: transparent, white, black або колір, наприклад "#ff8800"
 @msg	bad color {v}	неприпустимий колір {v}
+@msg	the Color Picker is not open	палітра кольорів не відкрита
+@msg	the screen color sampler is already open	засіб вибору кольору з екрана вже відкритий
+@msg	this system has no screen color sampler	у цій системі немає засобу вибору кольору з екрана
 @msg	bad colour `{hex}` (#rrggbb)	неприпустимий колір `{hex}` (#rrggbb)
 @msg	bad page tree	неприпустиме дерево сторінок
 @msg	bad shortcut	неприпустиме поєднання клавіш
@@ -4424,3 +4438,4 @@ lighting	Light	Світло
 @msg	Unknown unit	Невідома одиниця
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	Закриває круглі торці відкритих профілів. За неповного обертання бічні зрізи залишаються відкритими.
+	Distance	Відстань

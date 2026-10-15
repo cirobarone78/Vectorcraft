@@ -46,6 +46,7 @@ pub mod prefs_dialog;
 pub mod print;
 pub mod recovery;
 pub mod render_worker;
+pub mod screen_color;
 mod scrub;
 pub mod shortcut_editor;
 pub mod shortcuts;
@@ -247,6 +248,10 @@ pub struct Services {
     pub open_file: Option<RevealFn>,
     /// Show a folder picker; returns its path (desktop: Relink to Folder, Package).
     pub pick_folder: Option<Box<dyn FnMut() -> Option<String>>>,
+    /// Show the system's color sampler, which picks a color anywhere on the screen (macOS, and
+    /// browsers with an EyeDropper): Sample Color from Screen ([`screen_color`]). Without it that
+    /// command answers with an error and the Color Picker's eyedropper button is gray.
+    pub screen_color: Option<screen_color::StartSampler>,
     /// Where Data Recovery keeps its copies when not in a folder (the web's browser storage;
     /// tests): installed into the session ([`vectorcraft_engine::cmd::recovery`]).
     pub recovery_store: Option<std::sync::Arc<dyn vectorcraft_engine::cmd::recovery::RecoveryStore>>,
@@ -407,6 +412,8 @@ pub struct VectorcraftApp {
     clipboard_probe: Option<clipboard_probe::Probe>,
     /// File dialogs shown off the UI thread and what runs again with their answers.
     pub(crate) picks: picks::Picks,
+    /// The screen color sampler shown and not answered yet, and where its color goes.
+    pub(crate) screen_sampler: Option<screen_color::Waiting>,
     /// The look for fonts installed or removed while the app was in the background, running
     /// ([`Self::refresh_installed_fonts`]): whether they were.
     font_check: Option<std::sync::mpsc::Receiver<bool>>,
@@ -513,6 +520,7 @@ impl VectorcraftApp {
             system_paste_at: f64::NEG_INFINITY,
             clipboard_probe: None,
             picks: picks::Picks::default(),
+            screen_sampler: None,
             font_check: None,
             paste_chord: Default::default(),
             background: Default::default(),
@@ -665,8 +673,9 @@ impl VectorcraftApp {
             return r;
         }
         let mut params = params;
-        // Paste in place, in front, in back (#693), Select › All on Active Artboard (#1006) and Align to
-        // Artboard: onto, on or to the active artboard, the view's. A batch passes it on to those steps.
+        // Paste in place, in front and in back (#693), Select › All on Active Artboard (#1006), and Align,
+        // Distribute Objects and Distribute Spacing with Align to Artboard act on the active artboard, the
+        // view's, which the app passes as `artboard`. A batch passes it on to those steps.
         if (vectorcraft_engine::ON_ACTIVE_ARTBOARD.contains(&id) || id == "command.batch")
             && params.get("artboard").is_none()
             && self.view().is_some()
@@ -1092,6 +1101,7 @@ impl VectorcraftApp {
         self.poll_font_check(ctx);
         picks::poll(self, ctx);
         background::poll(self);
+        screen_color::poll(self, ctx);
         opening::poll(self);
         #[cfg(not(target_arch = "wasm32"))]
         self.tick_link_updates(ctx, now);
@@ -1309,6 +1319,9 @@ impl VectorcraftApp {
         if self.ui.status_bar && self.ui.screen_mode < 3 {
             chrome::status_bar(self, ui);
             chrome::hint_bar(self, ui);
+        } else {
+            // Keeps the previous frame's value valid for menus drawn above, before the bars.
+            widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());
         }
         if self.ui.toolbar && self.ui.screen_mode < 3 {
             toolbar::show(self, ui);

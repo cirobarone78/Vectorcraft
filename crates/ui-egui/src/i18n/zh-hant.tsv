@@ -457,6 +457,7 @@
 	Color bars	色彩條
 	Color blindness – Deuteranopia-type	色盲 – 綠色盲型
 	Color blindness – Protanopia-type	色盲 – 紅色盲型
+	Color blindness – Tritanopia-type	色盲 – 藍色盲型
 	Color Burn	加深顏色
 	Color conversion:	色彩轉換：
 	Color Dodge	加亮顏色
@@ -625,6 +626,7 @@
 	Cyan	青色
 	Dark	深色
 	Darken	變暗
+	Darkness	暗度
 	dash	虛線
 	Dash Pattern	虛線樣式
 	Dashed	虛線
@@ -980,6 +982,9 @@
 	Export…	匯出…
 	Extrude & Bevel…	突出與斜角…
 	Eyedropper	滴管
+	Sample Color from Screen	從螢幕取樣顏色
+	This system has no screen color sampler	此系統沒有螢幕取色工具
+	The active document changed while the screen color sampler was open	螢幕取色工具開啟期間，作用中的文件已變更
 	Eyedropper Applies:	滴管套用：
 	Eyedropper Options	滴管選項
 	Eyedropper Picks Up:	滴管擷取：
@@ -1012,6 +1017,7 @@
 	Fill and Stroke	填色與筆畫
 	Fill Color	填色顏色
 	Fill new strokes	為新筆畫套用填色
+	Keep selected	保持選取狀態
 	Fill New Type Objects With Placeholder Text	以預留位置文字填滿新文字物件
 	Fill Rule	填色規則
 	Fill with Placeholder Text	以預留位置文字填滿
@@ -1035,6 +1041,7 @@
 	Fit Headline	符合標題
 	Decrease Font Size	縮小字體大小
 	Increase Font Size	放大字體大小
+	Reset Tracking and Kerning	重設字距與字距微調
 	Spacing	間距
 	Step Type	依增量調整文字
 	Fit in View	符合檢視
@@ -1995,6 +2002,7 @@
 	Panel menu	面板選單
 	Panel Options…	面板選項…
 	Panels	面板
+	Panels Except Tools and Control	除工具與控制以外的面板
 	Paragraph	段落
 	Paragraph Style	段落樣式
 	Paragraph Style Options	段落樣式選項
@@ -3409,6 +3417,7 @@ imageTrace	Outline	輪廓
 	 to set spacing and orientation	可設定間距與方向
 	:	：
 	Isolate Selected Group	隔離選取的群組
+	Isolate Selected Object	隔離選取的物件
 	Release Clipping Mask	釋放剪裁遮色片
 	Make Compound Path	製作複合路徑
 	Release Compound Path	釋放複合路徑
@@ -3785,3 +3794,4 @@ lighting	Light	光源
 	Y:	Y：
 # Revolve cap description
 	Close the circular ends of open profiles. Partial sweeps keep their cut sides open.	封閉開放輪廓的圓形端部。部分旋轉的切割側面保持開放。
+	Distance	距離

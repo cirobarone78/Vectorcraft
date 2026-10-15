@@ -436,6 +436,7 @@
 	Round Corners…	Zaoblit rohy…
 	Scribble…	Čmáranice…
 	Drop Shadow…	Vržený stín…
+	Darkness	Tmavost
 	Inner Glow…	Vnitřní záře…
 	Outer Glow…	Vnější záře…
 	Feather…	Měkké okraje…
@@ -478,6 +479,7 @@
 	Monitor RGB	RGB monitoru
 	Color blindness – Protanopia-type	Barvoslepost – protanopie
 	Color blindness – Deuteranopia-type	Barvoslepost – deuteranopie
+	Color blindness – Tritanopia-type	Barvoslepost – tritanopie
 	Customize…	Vlastní…
 	Proof Colors	Barvy nátisku
 	Zoom In	Zvětšit
@@ -665,6 +667,7 @@
 	Auto Color	Automatická barva
 	Automatic	Automaticky
 	Isolate Selected Group	Izolovat vybranou skupinu
+	Isolate Selected Object	Izolovat vybraný objekt
 	Exit Isolation Mode	Ukončit izolovaný režim
 	Make Clipping Mask	Vytvořit ořezovou masku
 	Release Clipping Mask	Uvolnit ořezovou masku
@@ -904,6 +907,7 @@ lighting	Light	Světlo
 	Options for Selection…	Možnosti výběru…
 	Panel Options…	Možnosti panelu…
 	Panels	Panely
+	Panels Except Tools and Control	Panely kromě nástrojů a ovládacího panelu
 	Perspective Plane Options…	Možnosti perspektivní roviny…
 	Placement Options…	Možnosti umístění…
 	Plug-in…	Zásuvný modul…
@@ -2085,6 +2089,7 @@ lighting	Light	Světlo
 	Edit selected paths within:	Upravovat vybrané cesty do:
 	Fidelity:	Věrnost:
 	Fill new strokes	Vyplňovat nové tahy
+	Keep selected	Ponechat vybrané
 	The document has no colour swatches.	Dokument nemá ve vzorníku žádné barvy.
 	Style Name:	Název stylu:
 	Crop To	Oříznout na
@@ -2733,6 +2738,9 @@ effect	Vertical	Svislý
 	Clear Appearance	Vymazat vzhled
 	Duplicate Item	Duplikovat položku
 	Eyedropper	Kapátko
+	Sample Color from Screen	Nabrat barvu z obrazovky
+	This system has no screen color sampler	Tento systém nemá nástroj pro nabírání barvy z obrazovky
+	The active document changed while the screen color sampler was open	Aktivní dokument se změnil, zatímco byl otevřený nástroj pro nabírání barvy z obrazovky
 	Move Appearance	Přesunout vzhled
 	Reduce to Basic Appearance	Zredukovat na základní vzhled
 	Remove Item	Odebrat položku
@@ -3450,6 +3458,7 @@ axis	Both	Obě
 	Area / Path Type	Text v oblasti / na cestě
 	Decrease Font Size	Zmenšit velikost písma
 	Increase Font Size	Zvětšit velikost písma
+	Reset Tracking and Kerning	Obnovit prostrkání a vyrovnání párů
 	Step Type	Krokovat text
 	Get Text Range	Získat rozsah textu
 	Punctuation	Interpunkce
@@ -3803,6 +3812,8 @@ imageTrace	Outline	Obrys
 @msg	its type is to come in as outlines, which only its page has	jeho text se má načíst jako křivky, které má jen jeho stránka
 @msg	the art on them differs from the page's in {_1}% of it	kresba na nich se od stránky liší v {_1} % plochy
 @msg	the art on them differs from the page's in {_1}% of it: they come from its editing data all the same	kresba na nich se od stránky liší v {_1} % plochy: přesto pocházejí z jeho dat pro úpravy
+@msg	the file's layers weren't read ({_1}): it comes in as its page, in one layer	vrstvy souboru nebyly načteny ({_1}): soubor se otevře jako jeho stránka v jedné vrstvě
+@msg	the file's layers weren't read from its editing data ({_1}): they come from its PDF part	vrstvy souboru nebyly načteny z jeho dat pro úpravy ({_1}): pocházejí z jeho části PDF
 @msg	`to` must be "corner" or "smooth"	`to` musí být "corner" nebo "smooth"
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	soubory BMP jsou RGB nebo ve stupních šedi: colorModel rgb nebo gray
 @msg	Blend colors: select at least three objects with filled colours	Prolnout barvy: vyberte alespoň tři objekty s barevnou výplní
@@ -3944,6 +3955,9 @@ imageTrace	Outline	Obrys
 @msg	axis must be "vertical", "horizontal" or an angle in degrees, not `{v}`	osa musí být "vertical", "horizontal" nebo úhel ve stupních, ne `{v}`
 @msg	background {other}: transparent, white, black or a colour such as "#ff8800"	pozadí {other}: transparent, white, black nebo barva jako "#ff8800"
 @msg	bad color {v}	chybná barva {v}
+@msg	the Color Picker is not open	Výběr barvy není otevřený
+@msg	the screen color sampler is already open	nástroj pro nabírání barvy z obrazovky už je otevřený
+@msg	this system has no screen color sampler	tento systém nemá nástroj pro nabírání barvy z obrazovky
 @msg	bad colour `{hex}` (#rrggbb)	chybná barva `{hex}` (#rrggbb)
 @msg	bad page tree	chybný strom stránek
 @msg	bad shortcut	chybná klávesová zkratka

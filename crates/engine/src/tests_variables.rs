@@ -22,6 +22,13 @@ fn rect(s: &mut Session) -> NodeId {
     NodeId(r["id"].as_u64().unwrap())
 }
 
+/// A group of the objects `ids` → the group's id.
+fn group(s: &mut Session, ids: &[NodeId]) -> NodeId {
+    s.execute("select.set", &json!({"ids": ids.iter().map(|i| i.0).collect::<Vec<_>>()})).unwrap();
+    let r = s.execute("object.group", &json!({})).unwrap();
+    NodeId(r["id"].as_u64().unwrap())
+}
+
 fn plain(s: &Session, id: NodeId) -> String {
     match &s.doc().unwrap().doc.node(id).unwrap().kind {
         vectorcraft_doc::NodeKind::Text(t) => t.plain_text(),
@@ -253,6 +260,40 @@ fn locked_art_is_neither_bound_nor_rewritten() {
     assert!(!s.doc().unwrap().doc.node(r).unwrap().visible, "the unlocked rectangle still applied");
 }
 
+/// Binding fails for locked art and for art in a hidden or locked group or layer, and the
+/// error names which of the three applies.
+#[test]
+fn binding_errors_say_whether_a_layer_or_group_is_hidden_or_locked() {
+    let mut s = session();
+    s.execute("variable.define", &json!({"name": "Name", "kind": "text"})).unwrap();
+    let layer = NodeId(s.execute("layer.new", &json!({})).unwrap()["id"].as_u64().unwrap());
+    let t = text(&mut s, "x");
+    let r = rect(&mut s);
+    let bind = |s: &mut Session| s.execute("variable.bind", &json!({"variable": "Name", "ids": [t.0]})).unwrap_err().to_string();
+
+    s.execute("layer.setProps", &json!({"id": layer.0, "visible": false})).unwrap();
+    let e = bind(&mut s);
+    assert!(e.contains(&format!("node {} is in a hidden group or layer", t.0)), "{e}");
+    s.execute("layer.setProps", &json!({"id": layer.0, "visible": true})).unwrap();
+
+    s.execute("select.set", &json!({"ids": [t.0, r.0]})).unwrap();
+    s.execute("object.group", &json!({})).unwrap();
+    s.execute("object.hide", &json!({})).unwrap();
+    let e = bind(&mut s);
+    assert!(e.contains(&format!("node {} is in a hidden group or layer", t.0)), "{e}");
+    s.execute("object.showAll", &json!({})).unwrap();
+
+    s.execute("layer.setProps", &json!({"id": layer.0, "locked": true})).unwrap();
+    let e = bind(&mut s);
+    assert!(e.contains(&format!("node {} is in a locked group or layer", t.0)), "{e}");
+    s.execute("layer.setProps", &json!({"id": layer.0, "locked": false})).unwrap();
+
+    s.execute("select.set", &json!({"ids": [t.0]})).unwrap();
+    s.execute("object.lock", &json!({})).unwrap();
+    let e = bind(&mut s);
+    assert!(e.contains(&format!("node {} is locked", t.0)), "{e}");
+}
+
 /// Make Text Dynamic / Make Visibility Dynamic: what the panel's buttons run. One step from a
 /// selection to a bound variable, named after what it drives.
 #[test]
@@ -282,6 +323,18 @@ fn making_a_selection_dynamic_names_and_binds_it() {
     assert!(s.execute("variable.makeTextDynamic", &json!({})).is_err());
     s.execute("select.set", &json!({"ids": [r.0]})).unwrap();
     assert!(s.execute("variable.makeTextDynamic", &json!({})).is_err(), "a rectangle is not type");
+}
+
+/// Make Text Dynamic reports its errors under its own command id.
+#[test]
+fn make_dynamic_errors_name_the_command() {
+    let mut s = session();
+    let t = text(&mut s, "x");
+    let r = rect(&mut s);
+    s.execute("select.set", &json!({"ids": [t.0, r.0]})).unwrap();
+    s.execute("object.group", &json!({})).unwrap();
+    let e = s.execute("variable.makeTextDynamic", &json!({})).unwrap_err().to_string();
+    assert!(e.contains("`variable.makeTextDynamic`") && e.contains("is not type"), "{e}");
 }
 
 /// Capture Data Set records what the art holds now, which is how rows are made — the art is
@@ -342,6 +395,82 @@ fn updating_writes_the_art_into_the_active_row() {
     s.execute("dataset.update", &json!({})).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert_eq!(plain(&s, t), "Caz");
+}
+
+/// Update Data Set writes only the variables the active row holds, so a row that sets some of
+/// them still leaves the others alone when it is selected again. `all: true` adds the rest.
+#[test]
+fn updating_writes_only_the_variables_the_row_holds() {
+    let mut s = session();
+    let t = text(&mut s, "Alice");
+    let r = rect(&mut s);
+    s.execute("variable.define", &json!({"name": "Client", "kind": "text"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Client", "ids": [t.0]})).unwrap();
+    s.execute("variable.define", &json!({"name": "Badge", "kind": "visibility"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Badge", "ids": [r.0]})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Badge off", "values": {"Badge": false}})).unwrap();
+    s.execute("dataset.select", &json!({"name": "Badge off"})).unwrap();
+
+    s.execute("text.editRange", &json!({"id": t.0, "insert": "Typed by hand"})).unwrap();
+    s.execute("object.setProps", &json!({"ids": [r.0], "visible": true})).unwrap();
+    let v = s.execute("dataset.update", &json!({})).unwrap();
+    assert_eq!((v["values"].clone(), v["left"].clone()), (json!(1), json!(["Client"])), "{v}");
+    let sets = s.execute("dataset.list", &json!({})).unwrap();
+    assert_eq!(sets["datasets"][0]["values"], json!({"Badge": {"visible": true}}), "{sets}");
+
+    // `all: true` adds every variable the art reports a value for.
+    let v = s.execute("dataset.update", &json!({"all": true})).unwrap();
+    assert_eq!((v["values"].clone(), v["left"].clone()), (json!(2), json!([])), "{v}");
+    let sets = s.execute("dataset.list", &json!({})).unwrap();
+    assert_eq!(sets["datasets"][0]["values"]["Client"], json!({"text": "Typed by hand"}), "{sets}");
+}
+
+/// A variable whose object is locked reports no value, so Update keeps the row's value for it
+/// rather than dropping it from the row.
+#[test]
+fn updating_keeps_a_value_the_art_does_not_report() {
+    let mut s = session();
+    let t = text(&mut s, "First");
+    let r = rect(&mut s);
+    s.execute("variable.define", &json!({"name": "Label", "kind": "text"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Label", "ids": [t.0]})).unwrap();
+    s.execute("variable.define", &json!({"name": "Mark", "kind": "visibility"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Mark", "ids": [r.0]})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Row", "values": {"Label": "Second", "Mark": true}})).unwrap();
+    s.execute("dataset.select", &json!({"name": "Row"})).unwrap();
+
+    s.execute("object.setProps", &json!({"ids": [t.0], "locked": true})).unwrap();
+    s.execute("object.setProps", &json!({"ids": [r.0], "visible": false})).unwrap();
+    for params in [json!({}), json!({"all": true})] {
+        let v = s.execute("dataset.update", &params).unwrap();
+        assert_eq!((v["values"].clone(), v["left"].clone()), (json!(1), json!(["Label"])), "{params}: {v}");
+        let sets = s.execute("dataset.list", &json!({})).unwrap();
+        assert_eq!(sets["datasets"][0]["values"], json!({"Label": {"text": "Second"}, "Mark": {"visible": false}}), "{params}: {sets}");
+    }
+}
+
+/// A variable defined after a row was captured stays out of that row on Update, and joins it
+/// with `all: true`.
+#[test]
+fn a_variable_defined_after_a_row_joins_it_only_with_all() {
+    let mut s = session();
+    let name = text(&mut s, "First job");
+    let note = text(&mut s, "First note");
+    s.execute("variable.define", &json!({"name": "Name", "kind": "text"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Name", "ids": [name.0]})).unwrap();
+    s.execute("dataset.capture", &json!({"name": "Job 1"})).unwrap();
+    s.execute("variable.define", &json!({"name": "Note", "kind": "text"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Note", "ids": [note.0]})).unwrap();
+
+    s.execute("text.editRange", &json!({"id": name.0, "insert": "Second job"})).unwrap();
+    let v = s.execute("dataset.update", &json!({})).unwrap();
+    assert_eq!((v["values"].clone(), v["left"].clone()), (json!(1), json!(["Note"])), "{v}");
+    let sets = s.execute("dataset.list", &json!({})).unwrap();
+    assert_eq!(sets["datasets"][0]["values"], json!({"Name": {"text": "Second job"}}), "{sets}");
+
+    s.execute("dataset.update", &json!({"all": true})).unwrap();
+    let sets = s.execute("dataset.list", &json!({})).unwrap();
+    assert_eq!(sets["datasets"][0]["values"], json!({"Name": {"text": "Second job"}, "Note": {"text": "First note"}}), "{sets}");
 }
 
 /// Renaming carries the variable's bindings and its values in every row with it — a name is
@@ -547,6 +676,92 @@ fn a_row_that_hides_selected_objects_deselects_them() {
     assert!(s.doc().unwrap().doc.node(r).unwrap().visible);
     let sel = s.doc().unwrap().selection.clone();
     assert_eq!((sel.objects, sel.key), (vec![r, q], Some(r)), "undo selects r again as the key object");
+}
+
+/// A row that shows or hides a group also sets the objects inside it in the same selection,
+/// whichever variable was defined first.
+#[test]
+fn a_row_sets_the_objects_inside_a_group_it_shows_or_hides() {
+    let mut s = session();
+    let (inner, other) = (rect(&mut s), rect(&mut s));
+    let g = group(&mut s, &[inner, other]);
+    s.execute("variable.define", &json!({"name": "Inner", "kind": "visibility"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Inner", "ids": [inner.0]})).unwrap();
+    s.execute("variable.define", &json!({"name": "Set", "kind": "visibility"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Set", "ids": [g.0]})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Hidden", "values": {"Inner": false, "Set": false}})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Shown", "values": {"Inner": true, "Set": true}})).unwrap();
+
+    let v = s.execute("dataset.select", &json!({"name": "Hidden"})).unwrap();
+    assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(2), Some(0)), "{v}");
+    let v = s.execute("dataset.select", &json!({"name": "Shown"})).unwrap();
+    assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(2), Some(0)), "{v}");
+    let doc = &s.doc().unwrap().doc;
+    assert!(doc.node(g).unwrap().visible && doc.node(inner).unwrap().visible, "the group and the object inside it show");
+    let sets = s.execute("dataset.list", &json!({})).unwrap();
+    let matching: Vec<&Value> = sets["datasets"].as_array().unwrap().iter().filter(|d| d["matches"] == json!(true)).map(|d| &d["name"]).collect();
+    assert_eq!(matching, [&json!("Shown")], "{sets}");
+
+    // With the inner object's variable defined last, a row that hides both still hides it.
+    s.execute("variable.delete", &json!({"names": ["Inner"]})).unwrap();
+    s.execute("variable.define", &json!({"name": "Inner", "kind": "visibility"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Inner", "ids": [inner.0]})).unwrap();
+    s.execute("dataset.set", &json!({"name": "Hidden", "values": {"Inner": false, "Set": false}})).unwrap();
+    let v = s.execute("dataset.select", &json!({"name": "Hidden"})).unwrap();
+    assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(2), Some(0)), "{v}");
+    let doc = &s.doc().unwrap().doc;
+    assert!(!doc.node(g).unwrap().visible && !doc.node(inner).unwrap().visible, "both are hidden");
+}
+
+/// A row writes the text of type inside a group that it shows or hides, whichever variable was
+/// defined first.
+#[test]
+fn a_row_writes_type_inside_a_group_it_shows_or_hides() {
+    let mut s = session();
+    let t = text(&mut s, "Alice");
+    let other = rect(&mut s);
+    let g = group(&mut s, &[t, other]);
+    s.execute("variable.define", &json!({"name": "Name", "kind": "text"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Name", "ids": [t.0]})).unwrap();
+    s.execute("variable.define", &json!({"name": "Set", "kind": "visibility"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Set", "ids": [g.0]})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Hidden", "values": {"Name": "Bob", "Set": false}})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Shown", "values": {"Name": "Carol", "Set": true}})).unwrap();
+
+    s.execute("dataset.select", &json!({"name": "Hidden"})).unwrap();
+    assert_eq!(plain(&s, t), "Bob");
+    let v = s.execute("dataset.select", &json!({"name": "Shown"})).unwrap();
+    assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(2), Some(0)), "{v}");
+    assert_eq!(plain(&s, t), "Carol", "the text is written although the group started hidden");
+
+    // With the text variable defined last, a row that hides the group still writes the text.
+    s.execute("variable.delete", &json!({"names": ["Name"]})).unwrap();
+    s.execute("variable.define", &json!({"name": "Name", "kind": "text"})).unwrap();
+    s.execute("variable.bind", &json!({"variable": "Name", "ids": [t.0]})).unwrap();
+    s.execute("dataset.set", &json!({"name": "Hidden", "values": {"Name": "Bob", "Set": false}})).unwrap();
+    let v = s.execute("dataset.select", &json!({"name": "Hidden"})).unwrap();
+    assert_eq!((v["applied"].as_u64(), v["skipped"].as_u64()), (Some(2), Some(0)), "{v}");
+    assert_eq!(plain(&s, t), "Bob", "the text is written before the group is hidden");
+    assert!(!s.doc().unwrap().doc.node(g).unwrap().visible);
+}
+
+/// Of two visibility variables on one object, the one defined later decides whether it shows,
+/// as with two text variables.
+#[test]
+fn the_later_visibility_variable_on_an_object_wins() {
+    let mut s = session();
+    let r = rect(&mut s);
+    for name in ["First", "Second"] {
+        s.execute("variable.define", &json!({"name": name, "kind": "visibility"})).unwrap();
+        s.execute("variable.bind", &json!({"variable": name, "ids": [r.0]})).unwrap();
+    }
+    s.execute("dataset.new", &json!({"name": "Hide", "values": {"First": true, "Second": false}})).unwrap();
+    s.execute("dataset.new", &json!({"name": "Show", "values": {"First": false, "Second": true}})).unwrap();
+    let v = s.execute("dataset.select", &json!({"name": "Hide"})).unwrap();
+    assert_eq!(v["applied"], json!(2), "{v}");
+    assert!(!s.doc().unwrap().doc.node(r).unwrap().visible);
+    s.execute("dataset.select", &json!({"name": "Show"})).unwrap();
+    assert!(s.doc().unwrap().doc.node(r).unwrap().visible);
 }
 
 /// Variables and datasets are separate namespaces: renaming a variable leaves a dataset of

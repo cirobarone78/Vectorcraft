@@ -110,8 +110,9 @@ refused with `-32600` (requests) or ignored (notifications, which have no id to 
 to) before it is dispatched. When a tool call reaches a running app, it is one control-channel
 request, and the app echoes its `id` in the reply: a reply with any other `id` is rejected, the
 connection dropped, and the next call starts a fresh one — the call reports uncertainty like any
-reply that never arrived whole. The app's refusals carry no `id` (a connection past its 16, a line it
-would not read): the call reports the app's reason and says nothing was run. Before each call the
+reply that never arrived whole. A malformed JSON reply also drops the connection and reports that
+uncertainty; the failed operation is never replayed automatically. The app's refusals carry no `id`
+(a connection past its 16, a line it would not read): the call reports the app's reason and says nothing was run. Before each call the
 server checks that the app still holds the connection and opens a new one when it doesn't (the app
 closes a connection left idle for 5 minutes, and a restarted app is a new one), so a request is
 never written to a closed socket; when the app can't be reached, the call says that nothing was
@@ -304,7 +305,7 @@ objects' fills or strokes differ (`fillMixed` / `strokeMixed`, drawn as a "?" pr
 | `screenshot` | `{path?, scale?, artboard?, window?}` | Returns MCP image content (`image/png`, base64) plus a text block. Renders the artboard; `window:true` captures the app window (remote only). With `path` the backend (the headless session or the app) writes the PNG there too. |
 | `open_file` | `{path}` | Opens any readable file as a new active document: `.vectorcraft`/`.drawcraft`, `.vctemplate`, `.svg`/`.svgz`, `.pdf`/`.ai`, `.ait`, `.eps`, `.dxf`, `.emf`, `.wmf`, PNG, JPEG, GIF, WebP, TIFF, BMP, PSD/PSB (an image opens as a document of its pixel size; a Photoshop file as its merged image). Templates (`.vctemplate`, `.ait`) open as a new untitled document. PDF, `.ai` and SVG files saved with Preserve Editing reopen as the document they carry. The reply is `document.open`'s: its `warnings` say what didn't come in as it was (an EPS whose PostScript can't be read opens as its preview, and the warning names the PostScript error, the operator and the procedure). `run_command document.formats` lists the formats. |
 | `save_file` | `{path?}` | Runs `document.save`: the document's own file in its own format (native `.vectorcraft` unless it was opened from or saved as SVG, PDF or a restorable `.ai`; then `warnings` say what that format loses). A path's extension picks the format (`.vectorcraft`, `.vctemplate`, `.pdf`, `.svg`, `.svgz`, `.ai`: a PDF carrying the native document, which reopens editable). |
-| `export` | `{path?, format?, scale?, artboard?, range?, selection?, outlineText?, options?}` | `svg`, `svgz`, `pdf`, `eps`, `dxf`, `emf`, `wmf`, `png`, `jpg`, `webp`, `gif`, `png8` (an indexed `.png`), `tiff`, `bmp`, `tga`, `psd` (layered), `txt` (the document's text), `vectorcraft` or `template` (a native template). The tool's `format` enum and `document.formats` list them, generated from the engine's format table. When `format` is omitted, it comes from the path's extension. PDF writes one page per artboard: all of them, or `artboard` (0-based) / `range` (`"1-3, 5"`, 1-based); the other formats write one artboard. `options` carries more format options (e.g. `{"quality": 80}` for JPEG). `selection: true` exports the selected objects cropped to their bounds (the reply adds their `bounds`, and reports `format` and the encoder's `warnings` as a whole-document export does); `outlineText: true` writes SVG text as paths. Template layers are left out, live effects are kept, and exporting `vectorcraft` never changes the document's path. Without `path` the bytes come back as `dataBase64`. Both backends run the same `document.export` call. |
+| `export` | `{path?, format?, scale?, artboard?, range?, selection?, outlineText?, options?}` | `svg`, `svgz`, `pdf`, `ai` (the PDF-compatible `.ai` that Save writes, which carries the document when every artboard is written in order), `eps`, `dxf`, `emf`, `wmf`, `png`, `jpg`, `webp`, `gif`, `png8` (an indexed `.png`), `tiff`, `bmp`, `tga`, `psd` (layered), `txt` (the document's text), `vectorcraft` or `template` (a native template). The tool's `format` enum and `document.formats` list them, generated from the engine's format table. When `format` is omitted, it comes from the path's extension. PDF and `.ai` write one page per artboard: all of them, or `artboard` (0-based) / `range` (`"1-3, 5"`, 1-based). SVG, SVGZ and EPS write one file per chosen artboard. Rasters, DXF, EMF and WMF write one artboard, or one file per chosen artboard with `options: {"useArtboards": true}`. `options` carries more format options (e.g. `{"quality": 80}` for JPEG). `selection: true` exports the selected objects cropped to their bounds (the reply adds their `bounds`, and reports `format` and the encoder's `warnings` as a whole-document export does); `outlineText: true` writes SVG text as paths. Template layers are left out, live effects are kept, and exporting `vectorcraft` never changes the document's path. Without `path` the bytes come back as `dataBase64`. Both backends run the same `document.export` call. |
 | `add_text` | `{text, x?, y?, width?, height?, fit?, fitMinPercent?, path?, mode?, pathEffect?, size?, font?, color?, justify?}` | Point type at (x, y) (`justify`: `left`, `center` or `right` starts, centres or ends each line on x); area type with `width`/`height` (`fit`: `none`, `autoHeight`, `shrinkText`, as `text.areaOptions`); or `path` + `mode` (`area`/`onPath`) to flow text in or along a path, with `pathEffect` (`rainbow`, `skew`, `3dRibbon`, `stairStep`, `gravity`); `justify` (also `auto`, `justifyAll`) aligns the paragraphs of every kind, as `text.setStyle` does later. Returns `{id}`, with `overflow: true` when the text doesn't fit its frame or path. |
 | `apply_effect` | `{effect?, params?, ids?}` | Appends a live effect. Without `effect`, returns the effect catalogue with parameters and defaults. |
 | `pathfinder` | `{operation, ids?}` | `unite`, `minusFront`, `intersect`, `exclude`, `divide`, `trim`, `merge`, `crop`, `outline`, `minusBack`. For a live version, apply the `pathfinder.*` effect to a group (`effect.apply` groups several loose selected objects first). |
@@ -964,12 +965,25 @@ already walks Image Trace. Short agent entry points:
 - Image Trace: `imageTrace.presets`, `imageTrace.make {id?, preset?, params?, view?}` (or `imageTrace.makeAndExpand`),
   `imageTrace.setView`, `imageTrace.expand`, `imageTrace.release`.
 
+`dataset.select`, `dataset.next` and `dataset.prev` reply `{name, applied, skipped}`. They skip an object that is
+locked or inside a hidden or locked layer or group. They apply the data set's visibility values that show objects
+first, outermost object first, then its other values in the order the variables are defined, then its visibility
+values that hide objects, innermost object first. A data set that shows a group sets the objects inside it in the
+same call, and one that hides a visible group sets the objects inside it before it hides the group. Of two
+variables of the same kind on one object, the one defined last wins.
+
 ```json
 {"name":"run_command","arguments":{"command":"symbol.list","params":{}}}
 {"name":"run_command","arguments":{"command":"brush.list","params":{}}}
 {"name":"run_command","arguments":{"command":"variable.list","params":{}}}
 {"name":"run_command","arguments":{"command":"imageTrace.presets","params":{}}}
 ```
+
+`dataset.update {all?}` writes what the bound objects hold now into the active data set, for each variable that the
+data set holds. A variable whose objects report no value, because they are locked, inside a hidden or locked layer
+or group, or deleted, keeps the data set's value. With `all: true` it also adds every other variable that the
+objects report a value for. The reply gives `values`, the number of values it wrote, and `left`, the variables it
+did not write.
 
 ## Graphic styles
 
@@ -1338,7 +1352,8 @@ and `layerRows`, the rows highlighted in the panel.
   templates stay), `layer.collectInNew {ids?}`, `layer.releaseToLayers {id?, build?}` and
   `layer.releaseToLayersBuild` (each object of a layer or group in a sublayer of its own; Build adds up copies),
   `layer.reverse {ids?}`, `layer.template {ids?, on?}`, `layer.hideOthers` / `layer.showAll`,
-  `layer.outlineOthers` / `layer.previewAll`, `layer.lockOthers` / `layer.unlockAll` (Alt-clicking an eye or a lock
+  `layer.outlineOthers` / `layer.previewAll` (Ctrl/Cmd+Alt-clicking an eye runs Outline Others for the row's layer, or
+  Preview All Layers when the others are in Outline already), `layer.lockOthers` / `layer.unlockAll` (Alt-clicking an eye or a lock
   runs Hide or Lock Others for the row's layer, or Show or Unlock All when the others already are), `layer.pasteRemembersLayers`,
   `object.isolate {id}` (a group, a layer or a single object; not type) / `object.exitIsolation`.
 - **Dialogs and panel state** (control channel and the app's MCP): `ui.layerOptions {ids?}` and `ui.newLayer
@@ -1719,9 +1734,23 @@ selection, or to the first artboard when no artboard is under the center. With `
 the objects on artboard `artboard`, or on the first artboard when the call gives none; an index the document doesn't
 have is an error.
 
-The desktop app adds its active artboard, the one the Artboards panel highlights, to the `object.align` and
-`select.allOnArtboard` calls it runs without `artboard`, as it does for `edit.pasteInPlace`, `edit.pasteInFront` and
-`edit.pasteInBack`, and to each `command.batch`. A batch passes its `artboard` on to each of these steps that names
+`object.distribute {to: "artboard", artboard?}` and `object.distributeSpacing {to: "artboard", artboard?}` (the
+Distribute Objects and Distribute Spacing buttons with Align to Artboard) use the same artboard as `object.align`.
+`object.distribute` moves the first object, in the order of the line it spaces (left edges, centers or right edges; top
+edges, centers or bottom edges), until its left or top edge is on the artboard's left or top edge, and it moves the
+last object until its right or bottom edge is on the artboard's right or bottom edge. It spaces the other objects
+evenly by that line between them, and two objects are enough. `object.distributeSpacing` without `spacing` puts the
+left or top edge of the first object, in the order of those edges, on the artboard's left or top edge, and it puts the
+right or bottom edge of the last object on the artboard's right or bottom edge, with equal gaps between the objects.
+With `to: "selection"` or `"key"`, or without `to`, `object.distribute` and `object.distributeSpacing` without `spacing`
+keep the first and last objects where they are, and `object.distribute` moves nothing with fewer than three objects.
+With `spacing`, `object.distributeSpacing` does not use `to`. With anchor points selected (Direct Selection), both
+commands space the points among themselves and do not use `to` or `artboard`.
+
+The desktop app adds its active artboard, the one the Artboards panel highlights, to the `object.align`,
+`object.distribute`, `object.distributeSpacing` and `select.allOnArtboard` calls it runs without `artboard`, as it does
+for `edit.pasteInPlace`, `edit.pasteInFront` and `edit.pasteInBack`, and to each `command.batch`. A batch passes its
+`artboard` on to each of these steps that names
 none, when the step runs. When the document a step runs in has no artboard at that index (for example, after an
 earlier step deleted the active artboard when it was the last one), the step gets that document's last artboard. In
 remote mode, MCP's `run_command` calls and each step of the `command_batch` tool get the active artboard too. The
@@ -1733,6 +1762,7 @@ tool (`tool.select {tool: "artboard"}`) starts it on the active artboard: its `a
 
 ```json
 {"name":"run_command","arguments":{"command":"object.align","params":{"horizontal":"left","to":"artboard","artboard":1}}}
+{"name":"run_command","arguments":{"command":"object.distribute","params":{"horizontal":"left","to":"artboard","artboard":1}}}
 {"name":"run_command","arguments":{"command":"select.allOnArtboard","params":{"artboard":1}}}
 ```
 
@@ -1887,10 +1917,13 @@ Pen's second anchor at (150, 431), in line with the square's centre.
 - `placeholderText` (on by default): type the Type tools place (`pointer_gesture` with `type`, `areaType`…) starts with
   placeholder text, selected, so `type_text` replaces it; `text.create` and `text.createInPath` take `placeholder: true`.
 - `typeSizeIncrement`, `trackingIncrement`, `baselineShiftIncrement`: what `type.step {attribute: "size" | "leading" |
-  "tracking" | "kerning" | "baselineShift", by?}` steps by, on the text range given, the Type tool's selected text or the
-  selected type objects. `type.size.increase` / `type.size.decrease` (Cmd+Shift+. and Cmd+Shift+,) step the size; the
-  Type tool's Alt+arrows (`press_key {key: "Right", mods: {alt: true}}`) step kerning at a caret or tracking of the
-  selection (←/→), leading (↑/↓) and baseline shift (Shift+↑/↓), five steps with Cmd/Ctrl too.
+  "tracking" | "kerning" | "baselineShift", by?}` steps by, on the text range given, the type objects in `ids`, the
+  Type tool's selected text or the selected type objects. `type.size.increase` / `type.size.decrease` (Cmd+Shift+. and
+  Cmd+Shift+,) step the size; the Type tool's Alt+arrows (`press_key {key: "Right", mods: {alt: true}}`) step kerning at
+  a caret or tracking of the selection (←/→), leading (↑/↓) and baseline shift (Shift+↑/↓), five steps with Cmd/Ctrl
+  too. `type.resetTracking` (Cmd+Alt+Q, `press_key {key: "Q", mods: {cmd: true, alt: true}}`) sets tracking to 0 and
+  kerning to Auto in the type objects in `ids`, the Type tool's selected text or the selected type objects; at a caret
+  it resets only the kerning of the character before it.
 - `missingGlyphProtection` (on by default): `text.setStyle` and `text.setRangeStyle` changing the font leave the
   characters the new font has no glyph for in the font that had one.
 - `typeSelectionByPathOnly` (off by default): on, the Selection tools (`pointer_gesture` with `selection`, and the
@@ -2448,8 +2481,10 @@ Screens doesn't write EPS.
 
 ## Print
 
-File → Print writes the job as a print-ready PDF (there is no printer driver): each page is a sheet of the chosen
-paper. `file.print {settings?, path?}` → `{pages, path | dataBase64, bytes, warnings}`; `print.preview {settings?}`
+File → Print lays the job out as a print-ready PDF, in which each page is a sheet of the chosen paper. The desktop app
+sends the PDF to the system's print service, and the web build opens the browser's print dialog on it. With PDF File
+picked as the printer, File → Print saves the PDF instead (see Printing). Headless, `file.print {settings?, path?}` →
+`{pages, path | dataBase64, bytes, warnings}`; `print.preview {settings?}`
 answers what it would print without writing it: `{pages (copies included), sheets: [{artboard, tile?, ink?, width,
 height, orientation, scale}] (one copy, in order), tiles: [{artboard, columns, rows, printed, tiles}] (document
 space), inks: [{name, spot, print, frequency, angle}], warnings, settings}`. `print.setup {settings?}` saves the
@@ -2473,7 +2508,11 @@ documents every field:
   with; without preserveNumbers CMYK colours are separated again).
 
 Halftone screens and a fixed flatness are not written to the PDF (the output device's apply): the warnings say so,
-as they do for art larger than the imageable area.
+as they do for art larger than the imageable area. Type in a font family that isn't available prints in the fallback
+font, and the warnings of `file.print` and `print.preview` name those families. They count only type that prints:
+visible type that fits its frame or path, on the layers `printLayers` picks, on the paper of the artboards or tiles
+that print, and the type in the symbols, patterns, scatter brushes, opacity masks and placed documents of the art that
+prints.
 
 ```json
 {"name":"run_command","arguments":{"command":"print.setup","params":{"settings":{"media":"a4","scaling":"fit","marks":{"trim":true}}}}}
@@ -2633,7 +2672,8 @@ crop (`bounds`); `assets.rename {asset, name}` and `assets.remove {assets}` are 
 format row of the document's export settings, the ones Export for Screens remembers (`document.exportSettings`); any
 `formats`, `preset`, `settings`, `prefix` or `subfolders` given win for that export. `assets.settings.set` changes
 those shared settings (not an undo step). `document.exportForScreens {assets: [id…]}` does the same with its own params
-(the dialog's Assets tab).
+(the dialog's Assets tab). An asset's crop, and the crop of `export` with `selection: true`, is the bounds the
+renderer measures for what the art draws, its effects included.
 
 ```json
 {"name":"run_command","arguments":{"command":"assets.add","params":{"multiple":true}}}
