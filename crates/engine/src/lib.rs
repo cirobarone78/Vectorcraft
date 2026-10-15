@@ -277,6 +277,9 @@ pub struct DocState {
     pub variables_highlight: Option<String>,
     /// Isolation mode container.
     pub isolation: Option<NodeId>,
+    /// Select › Start Global Edit: similar objects (appearance and/or size) stay selected together
+    /// until Stop Global Edit or Escape. View state: not saved, not undoable.
+    pub global_edit: bool,
     pub interaction: Option<Interaction>,
     /// Edits made while this is open are one undo step (a scrubbed numeric field).
     pub undo_group: Option<UndoGroup>,
@@ -395,6 +398,7 @@ impl DocState {
             layer_rows: vec![],
             variables_highlight: None,
             isolation: None,
+            global_edit: false,
             interaction: None,
             undo_group: None,
             last_transform: None,

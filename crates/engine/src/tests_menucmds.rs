@@ -1990,3 +1990,44 @@ fn crop_image_trim_leaves_a_cmyk_image_alone() {
     let r = s.execute("object.cropImage", &json!({"trim": true})).unwrap();
     assert_eq!((r["trimmed"].as_bool(), r["width"].as_u64(), r["height"].as_u64()), (Some(false), Some(4), Some(2)), "{r}");
 }
+
+/// Select › Start Global Edit selects every object with the same appearance; Stop / a second run
+/// leaves the mode (helpx global-edit).
+#[test]
+fn start_global_edit_selects_similar_appearance() {
+    let mut s = session();
+    let a = rect(&mut s, 0.0, 0.0, 40.0, 30.0);
+    let b = rect(&mut s, 50.0, 0.0, 40.0, 30.0);
+    let c = rect(&mut s, 100.0, 0.0, 20.0, 20.0);
+    sel(&mut s, &[a, b]);
+    s.execute("paint.setFill", &json!({"color": "#ff0000"})).unwrap();
+    sel(&mut s, &[c]);
+    s.execute("paint.setFill", &json!({"color": "#0000ff"})).unwrap();
+    sel(&mut s, &[a]);
+    let r = s.execute("select.globalEdit", &json!({})).unwrap();
+    assert_eq!((r["active"].as_bool(), r["count"].as_u64()), (Some(true), Some(2)));
+    assert!(s.doc().unwrap().global_edit);
+    let mut ids = selected(&s);
+    ids.sort();
+    assert_eq!(ids, vec![a, b]);
+    // A differently sized matching fill is left out when size is required.
+    sel(&mut s, &[a]);
+    s.doc_mut().unwrap().global_edit = false;
+    let r = s.execute("select.globalEdit", &json!({"appearance": true, "size": true})).unwrap();
+    assert_eq!(r["count"].as_u64(), Some(2));
+    let stop = s.execute("select.globalEdit", &json!({})).unwrap();
+    assert_eq!(stop["active"].as_bool(), Some(false));
+    assert!(!s.doc().unwrap().global_edit);
+}
+
+#[test]
+fn start_global_edit_refuses_text_and_multi_selection() {
+    let mut s = session();
+    let t = text(&mut s, "hi");
+    sel(&mut s, &[t]);
+    assert!(s.execute("select.globalEdit", &json!({})).is_err());
+    let a = rect(&mut s, 0.0, 0.0, 10.0, 10.0);
+    let b = rect(&mut s, 20.0, 0.0, 10.0, 10.0);
+    sel(&mut s, &[a, b]);
+    assert!(s.execute("select.globalEdit", &json!({})).is_err());
+}

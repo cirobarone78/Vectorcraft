@@ -118,6 +118,10 @@ pub fn show(app: &mut VectorcraftApp, ui: &mut Ui) {
         actions.push((tl!("Crop Image"), "ui.cropImage"));
         actions.push((tl!("Mask"), "object.maskImage"));
     }
+    if crate::menus::enabled(app, "select.globalEdit") {
+        let stop = app.session.active().is_some_and(|d| d.global_edit);
+        actions.push((if stop { tl!("Stop Global Edit") } else { tl!("Start Global Edit") }, "select.globalEdit"));
+    }
     actions.push((tl!("Offset Path"), "object.path.offsetPath"));
     actions.push((tl!("Simplify"), "object.path.simplify"));
     actions.push((tl!("Arrange: Bring to Front"), "object.arrange.bringToFront"));

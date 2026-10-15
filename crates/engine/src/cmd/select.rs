@@ -183,7 +183,34 @@ pub fn specs() -> Vec<CommandSpec> {
             has_selection,
             same_attribute
         ),
+        cmd!(
+            "select.globalEdit",
+            "Start Global Edit",
+            ["Select"],
+            None,
+            "{appearance?: true, size?: false} while Global Edit is off: select every similar object to the one selected (same appearance and/or size; not images, text, masks, links or a multi-selection) and enter Global Edit → {count, active: true}; while on: leave Global Edit (Escape does the same) → {active: false}. Helpx: https://helpx.adobe.com/illustrator/using/global-edit.html",
+            can_global_edit,
+            global_edit
+        ),
     ]
+}
+
+/// Select › Start / Stop Global Edit: start needs one eligible object; stop needs the mode on.
+fn can_global_edit(s: &Session) -> std::result::Result<(), String> {
+    let st = s.active().ok_or_else(|| "no document open".to_string())?;
+    if st.global_edit {
+        return Ok(());
+    }
+    has_selection(s)?;
+    let objs = &st.selection.objects;
+    if objs.len() != 1 {
+        return Err("select one object".into());
+    }
+    let n = st.doc.node(objs[0]).ok_or_else(|| "nothing selected".to_string())?;
+    if !global_edit_eligible(n) {
+        return Err("Global Edit does not support images, text, masks or linked documents".into());
+    }
+    Ok(())
 }
 
 /// Selectable objects: children of visible, unlocked layers (or of the isolation container).
@@ -610,4 +637,51 @@ fn by_kind(s: &mut Session, f: fn(&Node) -> bool) -> Result<Value> {
     });
     s.select(|_, sel| sel.set(ids.iter().copied()))?;
     Ok(json!({ "count": ids.len() }))
+}
+
+/// Images, text, masks and linked documents are out of Global Edit (helpx).
+fn global_edit_eligible(n: &Node) -> bool {
+    match &n.kind {
+        NodeKind::Text(_) | NodeKind::Image(_) | NodeKind::PlacedDocument(_) | NodeKind::Layer { .. } => false,
+        NodeKind::Group { clip: true, .. } => false,
+        NodeKind::Path { clipping: true, .. } => false,
+        _ => !n.is_layer(),
+    }
+}
+
+fn same_size(a: &Node, b: &Node) -> bool {
+    match (a.geometric_bounds(), b.geometric_bounds()) {
+        (Some(ra), Some(rb)) => (ra.width() - rb.width()).abs() < 1e-3 && (ra.height() - rb.height()).abs() < 1e-3,
+        _ => false,
+    }
+}
+
+fn same_appearance(a: &Node, b: &Node) -> bool {
+    a.appearance == b.appearance && a.opacity == b.opacity && a.blend == b.blend
+}
+
+/// Select › Start Global Edit / Stop Global Edit (one command; the menu label flips).
+fn global_edit(s: &mut Session, p: &Value) -> Result<Value> {
+    const C: &str = "select.globalEdit";
+    if s.doc()?.global_edit {
+        s.doc_mut()?.global_edit = false;
+        s.doc_mut()?.revision += 1;
+        return Ok(json!({ "active": false }));
+    }
+    let appearance = bool_or(p, "appearance", true);
+    let size = bool_or(p, "size", false);
+    if !appearance && !size {
+        return Err(bad(C, "choose appearance and/or size"));
+    }
+    let st = s.doc()?;
+    let refn = st.selection.objects.first().and_then(|id| st.doc.node(*id)).cloned().ok_or_else(|| bad(C, "nothing selected"))?;
+    if !global_edit_eligible(&refn) {
+        return Err(bad(C, "Global Edit does not support images, text, masks or linked documents"));
+    }
+    let r = select_where(s, C, p, |_, n| {
+        global_edit_eligible(n) && (!appearance || same_appearance(n, &refn)) && (!size || same_size(n, &refn)) && (appearance || size)
+    })?;
+    s.doc_mut()?.global_edit = true;
+    s.doc_mut()?.revision += 1;
+    Ok(json!({ "count": r["count"], "active": true }))
 }

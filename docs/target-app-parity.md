@@ -38,9 +38,9 @@ tests and the CI gate. See [Calibration](#calibration).
   Illustrator's public documentation.
 - **From the code (measured, origin/main `01e165af`):**
   - Menu tree (`crates/ui-egui/src/menus.rs`, laid out in Illustrator's menu order): 347 items bound to
-    commands, 27 stubs (`todo(…)`/`todos(…)`), so 92.8% of menu items do something (348 and 27 after the
-    Revolve merge; 350 and 25, 93.3%, after Graph › Design and Marker; 353 and 22, 94.1%, after Extrude & Bevel, Inflate and Rotate). The stubs: Effect › 3D and Materials › Materials, Effect › SVG Filters, Edit › Spelling (3), Graph › Column, Live Paint
-    Gap Options, Optical Margin Alignment, Start Global Edit, global and video rulers (2), Snap to Glyph,
+    commands, 26 stubs (`todo(…)`/`todos(…)`), so ~93% of menu items do something (348 and 27 after the
+    Revolve merge; 350 and 25, 93.3%, after Graph › Design and Marker; 353 and 22, 94.1%, after Extrude & Bevel, Inflate and Rotate; Select › Start Global Edit bound). The stubs: Effect › 3D and Materials › Materials, Effect › SVG Filters, Edit › Spelling (3), Graph › Column, Live Paint
+    Gap Options, Optical Margin Alignment, global and video rulers (2), Snap to Glyph,
     Window › Arrange (4), SVG Interactivity, the library placeholders (3), Other Script…, Help.
   - Engine commands: ~710 ids registered with `cmd!` across `crates/engine/src/cmd` (plus macro-generated
     families), and 85 UI-only commands (`UI_COMMANDS`).
@@ -67,7 +67,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 
 | Area | Weight | Done | Main gaps | One agent (h) | Kind |
 |---|---:|---:|---|---:|---|
-| Selection, transform & align tools | 6 | 85% | Direct Selection segment click/Delete corrected (#1278); remaining: Free Transform/Scale/Reflect along a rotated box, Start Global Edit, transform nuances (no-op anchor Align history regression-tested, #1180 follow-up) | 4–6 | estimated |
+| Selection, transform & align tools | 6 | 86% | Direct Selection segment click/Delete corrected (#1278); Start Global Edit selects similar objects by appearance/size (Stop / Escape); remaining: Free Transform/Scale/Reflect along a rotated box, Global Edit Options and proportional scale, transform nuances (no-op anchor Align history regression-tested, #1180 follow-up) | 3–5 | estimated |
 | Drawing tools (Pen, Curvature, Pencil, shapes, Shaper) | 7 | 85% | Shaper construction widget, Pencil/Pen nuances, Blob Brush options, Touch Type, Dimension tool, Live Corners' Relative rounding; see [ui-parity.md](ui-parity.md) | 8–13 | estimated; Curvature point display regression-tested (#1236, in part) |
 | Path operations, Pathfinder, Shape Builder, Live Paint | 5 | 80% | Shape Builder misses planar regions in real files (#937), its gap detection and options; Live Paint Gap Options; Simplify slider/auto, advanced UI and Show Original | 4–8 | estimated (lowered from 86%: open issues); compound attributes regression-tested (#1197); single-result source names survive SVG export/import (#1293), with [SVG ID semantics](https://www.w3.org/TR/SVG2/struct.html#IDAttribute) and original-shape tests; Simplify component selection and preview regression-tested (#1272); Divide open-cutting-path geometry and appearance regression-tested (#1307) |
 | Colour, swatches, gradients, patterns, mesh, recolor | 7 | 92% | 30.0's gradient dither, perceptual blending and gradient presets; freeform and mixed spot/process gradients in SVG/PDF | 4–7 | estimated (lowered from 96%: target moved); unpainted zero-width stroke restoration fixed (#1253), score and hours unchanged; Eyedropper source reads regression-tested (#1251) |
@@ -78,7 +78,7 @@ dominate; 3D, graphs and automation are specialist). They sum to 105. Feature de
 | 3D and Materials (and Turntable) | 4 | ~25% | initial live Revolve, Extrude & Bevel (twist, taper, caps, five bevel shapes), Inflate and Rotate with Position presets (flat shading, one light, painter visibility); materials, several lights, shadows, ray tracing, 3D Classic, Turntable views, 3D export | 30–55 | estimated (Extrude & Bevel, Inflate and Rotate added 2026-10-12) |
 | Type core | 9 | 80% | Auto-leading style resets are implemented; remaining:  hyphenation and justification options, Optical Margin Alignment, Middle Eastern features beyond bidi layout, optional group font-size preservation; transformed character controls fixed (#1034), see [type-parity.md](type-parity.md) | 14–19 | estimated; full-name font matches regression-tested (#1258); mixed paragraph alignment indication implemented; headless regressions, full integration CI and visual review pass |
 | Type advanced (CJK, spelling, Touch Type, Retype) | 4 | 50% | CJK vertical composition (ruby, mojikumi), variable font axes, tab leaders, spell check, Touch Type, Retype | 20–28 | estimated |
-| Symbols, blends, envelopes, Repeat, perspective | 5 | 85% | 30.7's Blend panel with ease in/out, dynamic symbols, symbol libraries, Start Global Edit, envelope Anti-Alias/Preserve Shape | 6–10 | estimated (lowered from 88%: target moved) |
+| Symbols, blends, envelopes, Repeat, perspective | 5 | 85% | 30.7's Blend panel with ease in/out, dynamic symbols, symbol libraries, envelope Anti-Alias/Preserve Shape (Start Global Edit lives under Select / similar objects) | 5–9 | estimated (lowered from 88%: target moved) |
 | Image Trace, graphs, image tools | 3 | 75% | graph Column designs, Image Trace Create Strokes depth (Create Object Mosaic is done) | 5–8 | estimated (raised from 72%) |
 | Layers, artboards, document setup | 5 | 78% | Selected-artboard deletion is consistent across panel actions (all-selected retains artboard 1); history prunes removed indices while preserving valid multiselection; remaining:  30.0's artboard locking and colours and managing artboards from the canvas, Layers panel row context menus and Collect for Export (click-to-fit objects is done, #1227) | 5–8 | estimated (lowered from 82%: target moved); Artboard deletion keys keep artwork and the first of an all-selected set |
 | View & navigation | 3 | 70% | New View/Edit Views, multiple windows and Arrange, Snap to Glyph | 9–14 | estimated |
