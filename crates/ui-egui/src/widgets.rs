@@ -89,10 +89,15 @@ fn flat_fill(ui: &Ui, rect: Rect, resp: &Response) {
 
 /// Blue call-to-action pill (dialog OK/Create).
 pub fn primary_button(ui: &mut Ui, text: &str) -> Response {
+    primary_button_width(ui, text, 72.0)
+}
+
+/// Primary dialog button with a minimum width, for aligned action columns.
+pub(crate) fn primary_button_width(ui: &mut Ui, text: &str, min_width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
     let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), Color32::WHITE);
     let w = galley.size().x + 32.0;
-    let (rect, resp) = ui.allocate_exact_size(vec2(w.max(72.0), 28.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(vec2(w.max(min_width), 28.0), Sense::click());
     let bg = if resp.hovered() { t.accent } else { t.accent_strong };
     ui.painter().rect_filled(rect, CornerRadius::same(14), bg);
     ui.painter().galley(rect.center() - galley.size() / 2.0, galley, Color32::WHITE);
@@ -101,10 +106,15 @@ pub fn primary_button(ui: &mut Ui, text: &str) -> Response {
 
 /// Outlined secondary pill (dialog Cancel).
 pub fn secondary_button(ui: &mut Ui, text: &str) -> Response {
+    secondary_button_width(ui, text, 72.0)
+}
+
+/// Secondary dialog button with a minimum width, for aligned action columns.
+pub(crate) fn secondary_button_width(ui: &mut Ui, text: &str, min_width: f32) -> Response {
     let t = Tokens::get(ui.ctx());
     let galley = ui.painter().layout_no_wrap(tl!(text).to_string(), theme::semibold(12.5), t.text);
     let w = galley.size().x + 32.0;
-    let (rect, resp) = ui.allocate_exact_size(vec2(w.max(72.0), 28.0), Sense::click());
+    let (rect, resp) = ui.allocate_exact_size(vec2(w.max(min_width), 28.0), Sense::click());
     if resp.hovered() {
         ui.painter().rect_filled(rect, CornerRadius::same(14), t.hover);
     }
