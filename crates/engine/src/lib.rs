@@ -340,7 +340,7 @@ static NEXT_DOC_UID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64
 
 /// The rows open in the Layers panel: the layers, sublayers and groups that show what they hold.
 /// A document opens with the ones it was saved with ([`Document::layers_open`]), else with only
-/// its top-level layers open.
+/// its top-level layers open (a `.ai` another app wrote opens with none open).
 #[derive(Clone, Debug, Default)]
 pub struct OpenRows {
     ids: std::collections::HashSet<NodeId>,
