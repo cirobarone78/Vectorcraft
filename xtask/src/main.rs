@@ -28,7 +28,8 @@ commands:
   pdf-deps        verify immutable shared PDF writer and patched Krilla sources
   layers          enforce the crate dependency layering (plan/architecture.md §3)
   wasm            cargo check --target wasm32-unknown-unknown for the wasm-safe crates and the web app
-  ci              fmt --check, clippy -D warnings, test, pdf-deps, assets, brands, layers, wasm (stops at first failure)
+  ci              fmt --check, clippy -D warnings, test, pdf-deps, assets, brands, layers, wasm
+                  (stops at first failure). clippy and test use --locked, same as the Ubuntu PR gate.
   corpus [--download] [--affinity]
                   show where test corpora live; --download fetches PngSuite into corpus/pngsuite,
                   --affinity the pinned public Affinity documents into corpus/affinity
@@ -191,16 +192,17 @@ fn cmd_ci() -> Result<(), String> {
             "clippy",
             Box::new(|| {
                 let mut c = cargo();
-                c.args(["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]);
-                run(c, "cargo clippy --workspace --all-targets -- -D warnings")
+                // --locked: same Cargo.lock as CI / FreeBSD; fail if the lockfile is stale.
+                c.args(["clippy", "--locked", "--workspace", "--all-targets", "--", "-D", "warnings"]);
+                run(c, "cargo clippy --locked --workspace --all-targets -- -D warnings")
             }),
         ),
         (
             "test",
             Box::new(|| {
                 let mut c = cargo();
-                c.args(["test", "--workspace"]);
-                run(c, "cargo test --workspace")
+                c.args(["test", "--locked", "--workspace"]);
+                run(c, "cargo test --locked --workspace")
             }),
         ),
         ("pdf-deps", Box::new(|| pdf_deps::run(&root()))),

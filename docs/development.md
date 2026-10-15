@@ -1,6 +1,6 @@
 # Development
 
-> **Last updated:** 2026-10-13 · **Change:** verified PngSuite downloads (#1729).
+> **Last updated:** 2026-10-15 · **Change:** Quality gate section for local vs Ubuntu `cargo xtask ci` (#2131).
 
 ## Web build
 
@@ -222,6 +222,21 @@ locale resolve to it; plurals use one/few/many, with 21, 31 … taking many), Cz
   system font; the glyph test checks Latin and Cyrillic catalogs always and the CJK ones only with craft-fonts.
   A Traditional Chinese UI font is still to be added to craft-fonts for the web build.
 
+## Quality gate
+
+Merges use `cargo xtask ci`: fmt, clippy (`-D warnings`, `--locked`), test (`--locked`), pdf-deps, assets, brands, layers, wasm. The Ubuntu job in `.github/workflows/ci.yml` runs that same command on code PRs and on pushes to `main` (see #2131). FreeBSD remains a platform check; Affinity corpus stays its own workflow.
+
+To match Actions on your machine:
+
+```sh
+export CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+# optional, same pin as CI / FreeBSD so Japanese-glyph tests run instead of skipping:
+# export CRAFT_FONTS_DIR="$PWD/../craft-fonts" CRAFT_FONTS_REQUIRED=1
+cargo xtask ci
+```
+
+First-time pull requests from a fork need a maintainer to click **Approve and run workflows** once for that author; after that, the CI job runs on its own.
+
 ## Vendor names gate
 
 `cargo xtask brands` (part of `cargo xtask ci`) fails when user-visible text names another vendor's products or company: string literals in Rust sources (command labels and params docs, menus, panels, MCP tool definitions), `Cargo.toml` descriptions and packaging files. Comments and test code are not checked. Say "the reference app" or name the feature itself. A line that must keep an old name, such as an alias that files or preferences from earlier versions still use, carries a `brand-ok` comment.
@@ -343,4 +358,5 @@ do not replace expected hashes automatically in response to a download mismatch.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-15 | minor | Quality gate: Ubuntu `cargo xtask ci` job, local env to match Actions (#2131). |
 | 2026-10-13 | minor | Document pinned PngSuite files, integrity checks and download budgets (#1729). |
