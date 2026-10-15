@@ -34,6 +34,7 @@
 	Language	Język
 	UI Brightness	Jasność interfejsu
 	Dark	Ciemny
+	Graphite	Grafitowy
 	Medium Dark	Średnio ciemny
 	Medium Light	Średnio jasny
 	Light	Jasny
@@ -3763,7 +3764,7 @@ imageTrace	Outline	Kontur
 @msg	bad trailer	nieprawidłowa sekcja trailer
 @msg	balance must be between 0 and 100	równowaga musi mieścić się w zakresie od 0 do 100
 @msg	batch step {_1} (`{id}`) failed: {e}	krok wsadowy {_1} (`{id}`) nie powiódł się: {e}
-@msg	brightness must be dark|mediumDark|mediumLight|light	jasność musi mieć wartość dark|mediumDark|mediumLight|light
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	jasność musi mieć wartość graphite|dark|mediumDark|mediumLight|light
 @msg	can't encode the document: {0}	nie można zakodować dokumentu: {0}
 @msg	can't parse shortcut `{c}`	nie można przeanalizować skrótu `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	nie można przeanalizować skrótu `{s}` dla `{k}`

@@ -2055,6 +2055,7 @@
 	Media	Hordozó
 	Medium	Közepes
 	Medium (150 ppi)	Közepes (150 ppi)
+	Graphite	Grafit
 	Medium Dark	Közepesen sötét
 	Medium Dots	Közepes pontok
 	Medium Gray	Középszürke
@@ -4170,7 +4171,7 @@ imageTrace	Outline	Körvonal
 @msg	below and above must name a panel floating in another group	a below és az above egy másik csoportban lebegő panelt kell megnevezzen
 @msg	Blend colors: select at least three objects with filled colours	Színek összemosása: jelölj ki legalább három kitöltött objektumot
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	a BMP-fájlok RGB-k vagy szürkeárnyalatosak: colorModel rgb vagy gray
-@msg	brightness must be dark|mediumDark|mediumLight|light	a brightness értéke dark|mediumDark|mediumLight|light lehet
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	a brightness értéke graphite|dark|mediumDark|mediumLight|light lehet
 @msg	can't encode the document: {0}	a dokumentum nem kódolható: {0}
 @msg	can't parse shortcut `{c}`	a billentyűparancs nem értelmezhető: `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	a billentyűparancs nem értelmezhető: `{s}` (ehhez: `{k}`)

@@ -62,6 +62,7 @@
 	Type on a Path Options	패스 위 문자 옵션
 	UI Brightness	UI 밝기
 	Dark	어둡게
+	Graphite	그래파이트
 	Medium Dark	약간 어둡게
 	Medium Light	약간 밝게
 	Light	밝게
@@ -3976,7 +3977,7 @@ theme	Appearance	외관
 @msg	No saved views (View → New View…)	저장된 보기가 없습니다(보기 → 새 보기…)
 @msg	`command` must be a command whose menu item opens a dialog (see ui.menuDialog)	`command`는 메뉴 항목이 대화상자를 여는 명령이어야 합니다(ui.menuDialog 참조)
 @msg	`{key}` must be true or false	`{key}`은(는) true 또는 false여야 합니다
-@msg	brightness must be dark|mediumDark|mediumLight|light	brightness는 dark|mediumDark|mediumLight|light 중 하나여야 합니다
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	brightness는 graphite|dark|mediumDark|mediumLight|light 중 하나여야 합니다
 @msg	index must be a number or first, previous, next or last	index는 숫자이거나 first, previous, next, last 중 하나여야 합니다
 @msg	index must be a number or first, previous, next or last, not `{other}`	index는 숫자이거나 first, previous, next, last 중 하나여야 하며 `{other}`은(는) 안 됩니다
 @msg	lang must be one of {_1}	lang은 {_1} 중 하나여야 합니다

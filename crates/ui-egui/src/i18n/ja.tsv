@@ -66,6 +66,7 @@
 	Type on a Path Options	パス上文字オプション
 	UI Brightness	UI の明るさ
 	Dark	暗い
+	Graphite	グラファイト
 	Medium Dark	やや暗い
 	Medium Light	やや明るい
 	Light	明るい
@@ -3998,7 +3999,7 @@ theme	Appearance	外観
 @msg	No saved views (View → New View…)	保存した表示はありません (表示 → 新規表示…)
 @msg	`command` must be a command whose menu item opens a dialog (see ui.menuDialog)	`command` には、メニュー項目がダイアログを開くコマンドを指定してください (ui.menuDialog を参照)
 @msg	`{key}` must be true or false	`{key}` には true または false を指定してください
-@msg	brightness must be dark|mediumDark|mediumLight|light	brightness には dark|mediumDark|mediumLight|light のいずれかを指定してください
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	brightness には graphite|dark|mediumDark|mediumLight|light のいずれかを指定してください
 @msg	index must be a number or first, previous, next or last	index には数値、または first、previous、next、last のいずれかを指定してください
 @msg	index must be a number or first, previous, next or last, not `{other}`	index には数値、または first、previous、next、last のいずれかを指定してください (`{other}` は指定できません)
 @msg	lang must be one of {_1}	lang には {_1} のいずれかを指定してください

@@ -30,6 +30,7 @@
 	Language	Jazyk
 	UI Brightness	Jas rozhraní
 	Dark	Tmavý
+	Graphite	Grafitový
 	Medium Dark	Středně tmavý
 	Medium Light	Středně světlý
 	Light	Světlý
@@ -3949,7 +3950,7 @@ imageTrace	Outline	Obrys
 @msg	bad trailer	chybný trailer
 @msg	balance must be between 0 and 100	vyvážení musí být mezi 0 a 100
 @msg	batch step {_1} (`{id}`) failed: {e}	krok dávky {_1} (`{id}`) selhal: {e}
-@msg	brightness must be dark|mediumDark|mediumLight|light	jas musí být dark|mediumDark|mediumLight|light
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	jas musí být graphite|dark|mediumDark|mediumLight|light
 @msg	can't encode the document: {0}	dokument nelze zakódovat: {0}
 @msg	can't parse shortcut `{c}`	klávesovou zkratku `{c}` nelze analyzovat
 @msg	can't parse shortcut `{s}` for `{k}`	klávesovou zkratku `{s}` pro `{k}` nelze analyzovat

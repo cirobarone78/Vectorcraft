@@ -1,4 +1,5 @@
-//! Design tokens (Illustrator's four UI brightness levels), fonts and egui style.
+//! Design tokens (Illustrator's four UI brightness levels, and Graphite: near-black with a violet
+//! accent), fonts and egui style.
 
 use std::sync::Arc;
 
@@ -7,6 +8,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Brightness {
+    /// Darker than Dark: near-black panels with a violet accent.
+    Graphite,
     Dark,
     #[default]
     MediumDark,
@@ -15,9 +18,10 @@ pub enum Brightness {
 }
 
 impl Brightness {
-    pub const ALL: [Brightness; 4] = [Brightness::Dark, Brightness::MediumDark, Brightness::MediumLight, Brightness::Light];
+    pub const ALL: [Brightness; 5] = [Brightness::Graphite, Brightness::Dark, Brightness::MediumDark, Brightness::MediumLight, Brightness::Light];
     pub fn label(self) -> &'static str {
         match self {
+            Brightness::Graphite => "Graphite",
             Brightness::Dark => "Dark",
             Brightness::MediumDark => "Medium Dark",
             Brightness::MediumLight => "Medium Light",
@@ -26,6 +30,7 @@ impl Brightness {
     }
     pub fn id(self) -> &'static str {
         match self {
+            Brightness::Graphite => "graphite",
             Brightness::Dark => "dark",
             Brightness::MediumDark => "mediumDark",
             Brightness::MediumLight => "mediumLight",
@@ -142,6 +147,37 @@ impl Tokens {
             axis_z: hex(0x378ef0),
         };
         match b {
+            // Near-black graphite with a violet accent: canvas #0e0e0f, bars and rails #141415,
+            // panels #1a1a1c, fields #232326.
+            Brightness::Graphite => Tokens {
+                app_bar: hex(0x141415),
+                panel: hex(0x1a1a1c),
+                panel_darker: hex(0x141415),
+                tab_strip: hex(0x161617),
+                input: hex(0x232326),
+                input_border: hex(0x343439),
+                border: hex(0x0b0b0c),
+                divider: hex(0x26262a),
+                text: hex(0xe4e4e8),
+                text_strong: hex(0xf6f6f8),
+                text_dim: hex(0x96969e),
+                text_disabled: hex(0x606068),
+                icon: hex(0xc4c4cc),
+                hover: hex(0x2c2c30),
+                tool_active: hex(0x29263d),
+                accent: hex(0x8b7cf6),
+                accent_strong: hex(0x7565ec),
+                row_selected: hex(0x2e2a48),
+                pasteboard: hex(0x0e0e0f),
+                ruler: hex(0x141415),
+                ruler_tick: hex(0x6a6a72),
+                measure_bg: Color32::from_rgba_unmultiplied(35, 35, 38, 240),
+                button: hex(0x232326),
+                button_border: hex(0x3a3a40),
+                flyout_active: hex(0xb3a8ff),
+                radius: 4,
+                ..base
+            },
             Brightness::Dark => base,
             // Measured from Illustrator 2026 (plan/illustrator/10-observed-ui.md §1).
             Brightness::MediumDark => Tokens {
@@ -355,10 +391,22 @@ mod tests {
     /// in every brightness.
     #[test]
     fn slider_rails_show_on_every_panel() {
-        for b in [Brightness::Dark, Brightness::MediumDark, Brightness::MediumLight, Brightness::Light] {
+        for b in Brightness::ALL {
             let t = Tokens::for_brightness(b);
             let gap = (i32::from(t.button_border.r()) - i32::from(t.panel.r())).abs();
             assert!(gap >= 24, "{b:?}: rail {:?} on panel {:?}", t.button_border, t.panel);
         }
+    }
+
+    /// Graphite is a dark theme, darker than Dark, with its own accent.
+    #[test]
+    fn graphite_is_darker_than_dark() {
+        let (graphite, dark) = (Tokens::for_brightness(Brightness::Graphite), Tokens::for_brightness(Brightness::Dark));
+        assert!(graphite.dark);
+        let luma = |c: Color32| u32::from(c.r()) + u32::from(c.g()) + u32::from(c.b());
+        assert!(luma(graphite.panel) < luma(dark.panel));
+        assert!(luma(graphite.pasteboard) < luma(dark.pasteboard));
+        assert_ne!(graphite.accent, dark.accent);
+        assert_eq!(Brightness::parse("graphite"), Some(Brightness::Graphite));
     }
 }

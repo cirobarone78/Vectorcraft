@@ -1618,6 +1618,7 @@
 	Media	Supporto
 	Medium	Media
 	Medium (150 ppi)	Media (150 ppi)
+	Graphite	Grafite
 	Medium Dark	Scuro medio
 	Medium Light	Chiaro medio
 	Medium Thumbnail View	Vista miniature medie
@@ -3655,7 +3656,7 @@ axis	Both	Entrambi
 @msg	bad trailer	trailer non valido
 @msg	balance must be between 0 and 100	il bilanciamento deve essere compreso tra 0 e 100
 @msg	batch step {_1} (`{id}`) failed: {e}	il passaggio {_1} del batch (`{id}`) non è riuscito: {e}
-@msg	brightness must be dark|mediumDark|mediumLight|light	la luminosità deve essere dark|mediumDark|mediumLight|light
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	la luminosità deve essere graphite|dark|mediumDark|mediumLight|light
 @msg	can't encode the document: {0}	impossibile codificare il documento: {0}
 @msg	can't parse shortcut `{c}`	impossibile interpretare la scelta rapida `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	impossibile interpretare la scelta rapida `{s}` per `{k}`

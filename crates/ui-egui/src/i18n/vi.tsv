@@ -1858,6 +1858,7 @@
 	Media	Phương tiện
 	Medium	Vừa
 	Medium (150 ppi)	Vừa (150 ppi)
+	Graphite	Than chì
 	Medium Dark	Vừa tối
 	Medium Dots	Chấm vừa
 	Medium Gray	Xám vừa
@@ -3800,7 +3801,7 @@ theme	Appearance	Giao diện
 @msg	below and above must name a panel floating in another group	below và above phải đặt tên bảng đang thả nổi trong nhóm khác
 @msg	Blend colors: select at least three objects with filled colours	Hòa trộn màu: chọn ít nhất ba đối tượng có màu tô
 @msg	BMP files are RGB or grayscale: colorModel rgb or gray	Tệp BMP là RGB hoặc thang xám: colorModel rgb hoặc gray
-@msg	brightness must be dark|mediumDark|mediumLight|light	brightness phải là dark|mediumDark|mediumLight|light
+@msg	brightness must be graphite|dark|mediumDark|mediumLight|light	brightness phải là graphite|dark|mediumDark|mediumLight|light
 @msg	can't encode the document: {0}	không thể mã hóa tài liệu: {0}
 @msg	can't parse shortcut `{c}`	không thể phân tích phím tắt `{c}`
 @msg	can't parse shortcut `{s}` for `{k}`	không thể phân tích phím tắt `{s}` cho `{k}`
