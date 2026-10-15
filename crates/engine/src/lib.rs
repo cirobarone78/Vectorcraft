@@ -1877,6 +1877,8 @@ mod tests_gradient;
 #[cfg(test)]
 mod tests_gradpanel;
 #[cfg(test)]
+mod tests_gradspan;
+#[cfg(test)]
 mod tests_halftone;
 #[cfg(test)]
 mod tests_history_mem;
