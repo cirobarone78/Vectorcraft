@@ -594,7 +594,14 @@ imported instead and the first warning says why. Choosing a standard turns it of
 path (`document.save {path: "art.ai"}` or `{format: "ai"}`) writes a PDF-compatible file that always carries the
 document, takes the PDF options and keeps its path when reopened, so Save writes `.ai` again; a `.ait` opens untitled.
 `document.export` / `serialize` to `.ai` (and the CLI's `run --export x.ai` and `convert in.svg out.ai`) write the same file
-without giving the document a path.
+without giving the document a path. `options: {aiVersion: "7"}` writes legacy `.ai` files of version 7 instead (the
+PostScript form, which keeps layers, groups, compound paths and clipping groups in apps that read it), one per artboard
+of `range` (default all; `{name}-{artboard}.ai` when several, listed in the result's `files`), with
+`transparentImages: "flatten"` (default) or `"omit"` for images with see-through pixels, opacity or a blending mode,
+`hiddenObjects: "layer"` (default: a hidden layer of each layer's hidden objects), `"omit"` or `"visible"`, and
+`outlineText: true` to write type as outlines instead of text objects. From the CLI: `vectorcraft-cli convert in.svg
+out.ai --ai-version 7 [--hidden-objects layer|omit|visible] [--transparent-images flatten|omit] [--outline-text]
+[--range R]`.
 
 Drive a tool like a mouse:
 
@@ -1028,8 +1035,11 @@ Parameters: `angle` (degrees, 0..360, default 360), `offset` (points, 0..100000,
 `lightRotation` (degrees, -180..180, default 125.26; 0 on the object's right, counterclockwise), `lightHeight`
 (degrees, 0..90, default 30; 90 straight in front), `lightBehind` (default false), `lightSoftness` (0..100%,
 default 0), `ambient` (Ambient Light, 0..200%, default 25; an earlier `lightAzimuth` and `lightElevation` are read
-as the same light), and `expandVisibleOnly` (boolean, default true). A vertical-line profile needs a positive offset to have a radius.
-Open profiles have no end caps. Visibility of intersecting surfaces is approximate.
+as the same light), `cap` (boolean, default true), and `expandVisibleOnly` (boolean, default true). A vertical-line profile needs a positive offset to have a radius.
+`cap` closes each circular endpoint of an open profile with one curved, uniformly shaded
+vector path. Body faces share that curved rim. Partial sweeps use sectors and leave their angular
+cut sides open. Closed or coincident-end profiles are unchanged.
+Missing `cap` enables caps; set it to false for open endpoints. Shaded Revolve surfaces automatically interpolate curved-surface lighting with vector gradients while preserving profile corners and flat caps. There is no separate smoothing parameter. `shade: false` disables all lighting. Visibility of intersecting surfaces is approximate.
 The dialog's Lighting tab manipulates the same `lightRotation` and `lightHeight` parameters;
 its guide visibility and tab choice are UI state, excluded from saved effect parameters.
 `expandVisibleOnly` is saved with the effect. It trims covered portions of opaque solid surfaces only
@@ -1040,7 +1050,7 @@ See [Revolve](revolve.md) for the scope and limitations.
 
 ```json
 {"name":"run_command","arguments":{"command":"effect.apply","params":{"effect":"threeD.revolve","item":null,"params":{"angle":360,"offset":20,"edge":"left","rotationX":0,"rotationY":0,"rotationZ":0}}}}
-{"name":"run_command","arguments":{"command":"effect.setParams","params":{"index":0,"item":null,"params":{"angle":180,"lightRotation":30}}}}
+{"name":"run_command","arguments":{"command":"effect.setParams","params":{"index":0,"item":null,"params":{"angle":180,"lightRotation":30,"cap":true}}}}
 {"name":"run_command","arguments":{"command":"effect.setParams","params":{"index":0,"item":null,"params":{"expandVisibleOnly":true}}}}
 {"name":"run_command","arguments":{"command":"effect.expandAppearance","params":{}}}
 ```
