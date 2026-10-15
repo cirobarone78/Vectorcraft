@@ -83,8 +83,9 @@ fn named(vals: &[V], rgb: Option<bool>) -> Option<(Paint, Option<Named>)> {
         let [l, a, b] = before.get(n.checked_sub(3)?..)? else { return None };
         Color::lab(l.clamp(0.0, 100.0), a.clamp(-128.0, 127.0), b.clamp(-128.0, 127.0))
     } else {
-        // The CMYK values come first (an RGB equivalent may follow them).
-        let from = if n >= 7 { n - 7 } else { n.checked_sub(4)? };
+        // `x`/`X`: the CMYK values come first (an RGB equivalent may follow them). `Xx`/`Xk` of
+        // type 0: the four values right before the name, whatever comes before them (#1771).
+        let from = if rgb == Some(false) && n >= 7 { n - 7 } else { n.checked_sub(4)? };
         let [c, m, y, k] = before.get(from..from + 4)? else { return None };
         Color::cmyk(unit(*c), unit(*m), unit(*y), unit(*k))
     };
@@ -342,6 +343,11 @@ mod tests {
         v.extend([V::Str(b"Orange".to_vec()), V::Num(0.0), V::Num(1.0)]);
         let (p, _) = color_op("Xk", &v).unwrap();
         assert_eq!(p.color(), Some(Color::rgb(1.0, 0.5, 0.0)));
+        // #1771: CMYK (type 0) takes the four values before the name, not values ahead of them.
+        let mut v = nums(&[1.0, 1.0, 0.0, 0.93, 0.1, 0.0, 0.0]);
+        v.extend([V::Str(b"PMS3538".to_vec()), V::Num(0.0), V::Num(0.0)]);
+        let (p, _) = color_op("Xx", &v).unwrap();
+        assert_eq!(p.color(), Some(Color::cmyk(0.93, 0.1, 0.0, 0.0)));
         // A spot colour defined in Lab (type 2): its L a b values, not its CMYK equivalent (#1032).
         let mut v = nums(&[0.52, 0.98, 0.28, 0.1, 32.9412, 45.0, -18.0]);
         v.extend([V::Str(b"Plum Ink".to_vec()), V::Num(0.0), V::Num(2.0)]);
