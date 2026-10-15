@@ -658,6 +658,8 @@ pub struct Prefs {
     /// Scale Strokes & Effects.
     pub scale_strokes: bool,
     pub zoom_with_mouse_wheel: bool,
+    /// While Zoom with Mouse Wheel is off, Cmd/Ctrl-wheel scrolls sideways instead of zooming.
+    pub ctrl_wheel_scrolls_sideways: bool,
     /// A horizontal drag on a numeric field or its label steps its value (#400).
     pub scrub_numeric_fields: bool,
     /// Offset for Paste / duplicate (Illustrator pastes to the view centre; we offset by this).
@@ -905,6 +907,7 @@ impl Default for Prefs {
             scale_corners: false,
             scale_strokes: false,
             zoom_with_mouse_wheel: false,
+            ctrl_wheel_scrolls_sideways: false,
             scrub_numeric_fields: true,
             paste_offset: 10.0,
             selection_tolerance: 3.0,
