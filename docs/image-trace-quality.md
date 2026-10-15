@@ -6,6 +6,21 @@ What Image Trace (`crates/trace`) makes of images whose right answer is known, m
 compared with the numbers before each change. Nothing here is a judgement by eye, and nothing is compared
 with any other product except the open tracer named under [Yardstick](#4-yardstick).
 
+## Pieces returning to a junction
+
+An outline piece can return to its starting junction while being fitted as an open chain. At loose
+Corners/Paths settings, a nonzero positioned boundary could collapse to one cubic and lose a small
+corner-touching mark. Fixed-end pieces with identical endpoints and fewer than two fitted segments
+now retain their positioned boundary when its area is finite and nonzero. Fitting the shared piece
+this way also gives an abutting fill exactly the reversed boundary, including within a compound path.
+
+Six source-generated regressions check 1- and 2-pixel regions through four rotations, both windings
+and large translations; fixed junctions; zero positioned area; free ends; Noise controls; and shared
+edges through four rotations and black/white inversion. Noise 2 still removes the 1-pixel mark.
+The white-hole Noise check is a control, not a reproduced returning-hole case. Defaults are unchanged;
+these tests establish survival and edge consistency, not a new artistic-quality or parity score.
+This is separate from the closed-contour recovery in #2012 and straightening guard in #2025.
+
 ## How it is measured
 
 `crates/trace/tests/quality` draws its own inputs from vector art (no image files), traces each with every
@@ -955,6 +970,7 @@ One trace at a time on this machine (all cores); memory is the peak allocated ab
 
 | date | change |
 |:--|:--|
+| 2026-10-15 | Fixed-end pieces returning to their junction retain their positioned nonzero boundary when fitted to fewer than two cubics; source-generated tests cover survival, winding, shared-edge equality, translations and Noise controls. Defaults and parity scores unchanged. |
 | 2026-10-14 | Gradients: a gradient that noise or a soft rim broke into pieces is found in its largest piece and grown over the rest (blurred and noisy linear gradients: 3 to 11 paths beside the gradient down to 0.5 with 6 Colors, 24 to 56 down to 0.5 to 1.5 with High Fidelity Photo) |
 | 2026-10-14 | Enhanced versions of the presets (Auto Grouping, and Shapes in all but High Fidelity Photo; Flat Logo has none), each measured beside its preset; a hole that one colour fills is the same shape as what fills it, rectangles are sized by where their sides lie, and a group keeps its paths in the order they were traced in (grouped, a letter with a counter was painted with a light seam: Default with Auto Grouping, edge ΔE 10.24 to 9.88) |
 | 2026-10-14 | Create: Strokes: a line whose ink is cut square at its ends gets square caps, and a wide line whose skeleton hooks towards a corner of its end ends on the line it was following (Outline: largest distance 2.94 px to 0.88; aliased lines 0.88 to 0.81) |
